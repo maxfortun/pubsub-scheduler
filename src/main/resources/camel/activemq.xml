@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns="http://camel.apache.org/schema/spring">
+
+    <!-- Ingest route: consume from schedule queue, process and persist -->
+    <route id="ingest-route">
+        <from uri="{{scheduler.in}}"/>
+        <log loggingLevel="DEBUG" message="Received schedule request: ${headers}"/>
+
+        <doTry>
+            <process ref="ingestProcessor"/>
+            <doCatch>
+                <exception>java.lang.IllegalArgumentException</exception>
+                <log loggingLevel="WARN" message="Invalid schedule request: ${exception.message}"/>
+                <setHeader name="SCHEDULER_ERROR">
+                    <simple>${exception.message}</simple>
+                </setHeader>
+                <to uri="{{scheduler.dlq}}"/>
+            </doCatch>
+            <doCatch>
+                <exception>java.lang.Exception</exception>
+                <log loggingLevel="ERROR" message="Error processing schedule request: ${exception.message}"/>
+                <setHeader name="SCHEDULER_ERROR">
+                    <simple>${exception.message}</simple>
+                </setHeader>
+                <to uri="{{scheduler.dlq}}"/>
+            </doCatch>
+        </doTry>
+    </route>
+
+    <!-- Fire route: called internally to publish to destination -->
+    <route id="fire-route">
+        <from uri="direct:fire"/>
+        <process ref="fireProcessor"/>
+
+        <doTry>
+            <toD uri="${header.CamelOverrideEndpointUri}"/>
+            <doCatch>
+                <exception>java.lang.Exception</exception>
+                <log loggingLevel="ERROR" message="Failed to fire job to ${header.CamelOverrideEndpointUri}: ${exception.message}"/>
+                <throwException exceptionType="java.lang.RuntimeException" message="Fire failed: ${exception.message}"/>
+            </doCatch>
+        </doTry>
+    </route>
+
+    <!-- Advisory route: publish scheduling events -->
+    <route id="advisory-route">
+        <from uri="direct:advisory"/>
+        <log loggingLevel="DEBUG" message="Publishing advisory: ${header.SCHEDULER_ADVISORY_EVENT}"/>
+
+        <doTry>
+            <to uri="{{scheduler.advisory}}"/>
+            <doCatch>
+                <exception>java.lang.Exception</exception>
+                <log loggingLevel="WARN" message="Failed to publish advisory: ${exception.message}"/>
+                <setHeader name="SCHEDULER_ERROR">
+                    <simple>${exception.message}</simple>
+                </setHeader>
+                <to uri="{{scheduler.advisory.dlq}}"/>
+            </doCatch>
+        </doTry>
+    </route>
+
+</routes>

@@ -18,13 +18,16 @@ dependencies {
     // Quarkus core
     implementation("io.quarkus:quarkus-arc")
 
-    // Camel
+    // Camel core
     implementation("org.apache.camel.quarkus:camel-quarkus-core")
     implementation("org.apache.camel.quarkus:camel-quarkus-xml-io-dsl")
-    implementation("org.apache.camel.quarkus:camel-quarkus-kafka")
     implementation("org.apache.camel.quarkus:camel-quarkus-direct")
     implementation("org.apache.camel.quarkus:camel-quarkus-bean")
     implementation("org.apache.camel.quarkus:camel-quarkus-log")
+
+    // Camel messaging (include what you need)
+    implementation("org.apache.camel.quarkus:camel-quarkus-kafka")
+    implementation("org.apache.camel.quarkus:camel-quarkus-activemq")
 
     // Database
     implementation("io.quarkus:quarkus-jdbc-postgresql")
