@@ -1,9 +1,9 @@
-package net.maxf.pubsub.service;
+package net.maxf.pubsub.scheduler.service;
 
-import net.maxf.pubsub.model.AdvisoryEvent;
-import net.maxf.pubsub.model.JobState;
-import net.maxf.pubsub.model.KeyMode;
-import net.maxf.pubsub.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
+import net.maxf.pubsub.scheduler.model.JobState;
+import net.maxf.pubsub.scheduler.model.KeyMode;
+import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;

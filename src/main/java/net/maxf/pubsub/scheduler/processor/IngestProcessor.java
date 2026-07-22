@@ -1,9 +1,9 @@
-package net.maxf.pubsub.processor;
+package net.maxf.pubsub.scheduler.processor;
 
-import net.maxf.pubsub.model.SleepStart;
-import net.maxf.pubsub.model.KeyMode;
-import net.maxf.pubsub.model.ScheduledJob;
-import net.maxf.pubsub.service.JobStoreService;
+import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.KeyMode;
+import net.maxf.pubsub.scheduler.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.service.JobStoreService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;

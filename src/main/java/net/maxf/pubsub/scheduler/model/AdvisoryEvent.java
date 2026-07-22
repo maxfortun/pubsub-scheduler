@@ -1,4 +1,4 @@
-package net.maxf.pubsub.model;
+package net.maxf.pubsub.scheduler.model;
 
 public enum AdvisoryEvent {
     JOB_SCHEDULED,      // Job accepted and queued

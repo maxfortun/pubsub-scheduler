@@ -1,6 +1,6 @@
-package net.maxf.pubsub.processor;
+package net.maxf.pubsub.scheduler.processor;
 
-import net.maxf.pubsub.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Named;
 import org.apache.camel.Exchange;

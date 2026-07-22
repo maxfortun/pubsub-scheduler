@@ -1,4 +1,4 @@
-package net.maxf.pubsub.model;
+package net.maxf.pubsub.scheduler.model;
 
 public enum JobState {
     WAITING,    // Queued behind predecessor (QUEUE mode)
