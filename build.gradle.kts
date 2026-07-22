@@ -40,7 +40,7 @@ dependencies {
     testImplementation("io.rest-assured:rest-assured")
 }
 
-group = "com.maxfortun"
+group = "net.maxf"
 version = "1.0.0-SNAPSHOT"
 
 java {

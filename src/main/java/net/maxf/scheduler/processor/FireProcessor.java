@@ -1,6 +1,6 @@
-package com.maxfortun.scheduler.processor;
+package net.maxf.scheduler.processor;
 
-import com.maxfortun.scheduler.model.ScheduledJob;
+import net.maxf.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Named;
 import org.apache.camel.Exchange;

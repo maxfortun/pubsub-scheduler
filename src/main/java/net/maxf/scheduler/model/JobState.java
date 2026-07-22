@@ -1,4 +1,4 @@
-package com.maxfortun.scheduler.model;
+package net.maxf.scheduler.model;
 
 public enum JobState {
     WAITING,    // Queued behind predecessor (QUEUE mode)

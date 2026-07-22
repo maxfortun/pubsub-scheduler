@@ -1,4 +1,4 @@
-package com.maxfortun.scheduler.model;
+package net.maxf.scheduler.model;
 
 public enum KeyMode {
     QUEUE,      // Wait for prior jobs with same key to complete

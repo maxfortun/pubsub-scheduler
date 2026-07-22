@@ -1,4 +1,4 @@
-package com.maxfortun.scheduler.model;
+package net.maxf.scheduler.model;
 
 public enum SleepStart {
     SELF,   // Sleep from this job's arrival time (default)

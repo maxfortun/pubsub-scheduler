@@ -1,4 +1,4 @@
-package com.maxfortun.scheduler.model;
+package net.maxf.scheduler.model;
 
 import java.time.Instant;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.maxfortun.scheduler.model;
+package net.maxf.scheduler.model;
 
 public enum AdvisoryEvent {
     JOB_SCHEDULED,      // Job accepted and queued

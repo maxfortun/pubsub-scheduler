@@ -1,7 +1,7 @@
-package com.maxfortun.scheduler.service;
+package net.maxf.scheduler.service;
 
-import com.maxfortun.scheduler.model.AdvisoryEvent;
-import com.maxfortun.scheduler.model.ScheduledJob;
+import net.maxf.scheduler.model.AdvisoryEvent;
+import net.maxf.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.apache.camel.ProducerTemplate;

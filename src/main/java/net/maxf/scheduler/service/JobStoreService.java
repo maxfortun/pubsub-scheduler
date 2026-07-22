@@ -1,9 +1,9 @@
-package com.maxfortun.scheduler.service;
+package net.maxf.scheduler.service;
 
-import com.maxfortun.scheduler.model.AdvisoryEvent;
-import com.maxfortun.scheduler.model.JobState;
-import com.maxfortun.scheduler.model.KeyMode;
-import com.maxfortun.scheduler.model.ScheduledJob;
+import net.maxf.scheduler.model.AdvisoryEvent;
+import net.maxf.scheduler.model.JobState;
+import net.maxf.scheduler.model.KeyMode;
+import net.maxf.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;

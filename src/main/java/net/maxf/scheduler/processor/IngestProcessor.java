@@ -1,9 +1,9 @@
-package com.maxfortun.scheduler.processor;
+package net.maxf.scheduler.processor;
 
-import com.maxfortun.scheduler.model.SleepStart;
-import com.maxfortun.scheduler.model.KeyMode;
-import com.maxfortun.scheduler.model.ScheduledJob;
-import com.maxfortun.scheduler.service.JobStoreService;
+import net.maxf.scheduler.model.SleepStart;
+import net.maxf.scheduler.model.KeyMode;
+import net.maxf.scheduler.model.ScheduledJob;
+import net.maxf.scheduler.service.JobStoreService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
