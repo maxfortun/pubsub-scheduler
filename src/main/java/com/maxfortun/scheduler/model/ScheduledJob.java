@@ -11,7 +11,8 @@ public class ScheduledJob implements Delayed {
     private UUID id;
     private String jobKey;
     private KeyMode keyMode;
-    private DelayStart delayStart;
+    private SleepStart sleepStart;
+    private String cronExpression;
 
     private Instant fireAt;
     private Instant effectiveFireAt;
@@ -42,7 +43,7 @@ public class ScheduledJob implements Delayed {
         this.id = UUID.randomUUID();
         this.state = JobState.PENDING;
         this.keyMode = KeyMode.QUEUE;
-        this.delayStart = DelayStart.SELF;
+        this.sleepStart = SleepStart.SELF;
         this.retryCount = 0;
         this.version = 0;
         this.createdAt = Instant.now();
@@ -77,8 +78,13 @@ public class ScheduledJob implements Delayed {
     public KeyMode getKeyMode() { return keyMode; }
     public void setKeyMode(KeyMode keyMode) { this.keyMode = keyMode; }
 
-    public DelayStart getDelayStart() { return delayStart; }
-    public void setDelayStart(DelayStart delayStart) { this.delayStart = delayStart; }
+    public SleepStart getSleepStart() { return sleepStart; }
+    public void setSleepStart(SleepStart sleepStart) { this.sleepStart = sleepStart; }
+
+    public String getCronExpression() { return cronExpression; }
+    public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
+
+    public boolean isCron() { return cronExpression != null; }
 
     public Instant getFireAt() { return fireAt; }
     public void setFireAt(Instant fireAt) { this.fireAt = fireAt; }

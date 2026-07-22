@@ -1,6 +1,6 @@
 package com.maxfortun.scheduler.processor;
 
-import com.maxfortun.scheduler.model.DelayStart;
+import com.maxfortun.scheduler.model.SleepStart;
 import com.maxfortun.scheduler.model.KeyMode;
 import com.maxfortun.scheduler.model.ScheduledJob;
 import com.maxfortun.scheduler.service.JobStoreService;
@@ -25,9 +25,10 @@ public class IngestProcessor implements Processor {
     private static final Logger LOG = Logger.getLogger(IngestProcessor.class);
 
     private static final String HEADER_PREFIX = "SCHEDULER_";
-    private static final String HEADER_FIRE_AT = HEADER_PREFIX + "FIRE_AT";
-    private static final String HEADER_DELAY = HEADER_PREFIX + "DELAY";
-    private static final String HEADER_DELAY_START = HEADER_PREFIX + "DELAY_START";
+    private static final String HEADER_AT = HEADER_PREFIX + "AT";
+    private static final String HEADER_SLEEP = HEADER_PREFIX + "SLEEP";
+    private static final String HEADER_CRON = HEADER_PREFIX + "CRON";
+    private static final String HEADER_SLEEP_START = HEADER_PREFIX + "SLEEP_START";
     private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
     private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
     private static final String HEADER_KEY_MODE = HEADER_PREFIX + "KEY_MODE";
@@ -52,24 +53,33 @@ public class IngestProcessor implements Processor {
         }
         job.setDestinationTopic(destination);
 
-        // Timing: either FIRE_AT or DELAY
-        String fireAtStr = message.getHeader(HEADER_FIRE_AT, String.class);
-        String delayStr = message.getHeader(HEADER_DELAY, String.class);
+        // Timing: AT, SLEEP, or CRON (mutually exclusive)
+        String atStr = message.getHeader(HEADER_AT, String.class);
+        String sleepStr = message.getHeader(HEADER_SLEEP, String.class);
+        String cronStr = message.getHeader(HEADER_CRON, String.class);
 
-        if (fireAtStr != null) {
-            job.setFireAt(Instant.parse(fireAtStr));
-        } else if (delayStr != null) {
-            Duration delay = Duration.parse(delayStr);
-            job.setFireAt(Instant.now().plus(delay));
+        int timingCount = (atStr != null ? 1 : 0) + (sleepStr != null ? 1 : 0) + (cronStr != null ? 1 : 0);
+        if (timingCount > 1) {
+            throw new IllegalArgumentException("SCHEDULER_AT, SCHEDULER_SLEEP, and SCHEDULER_CRON are mutually exclusive");
+        }
+
+        if (atStr != null) {
+            job.setFireAt(Instant.parse(atStr));
+        } else if (sleepStr != null) {
+            Duration sleep = Duration.parse(sleepStr);
+            job.setFireAt(Instant.now().plus(sleep));
+        } else if (cronStr != null) {
+            job.setCronExpression(cronStr);
+            job.setFireAt(calculateNextCronFire(cronStr));
         } else {
             // Immediate
             job.setFireAt(Instant.now());
         }
 
-        // Delay start reference
-        String delayStartStr = message.getHeader(HEADER_DELAY_START, String.class);
-        if (delayStartStr != null) {
-            job.setDelayStart(DelayStart.valueOf(delayStartStr.toUpperCase()));
+        // Sleep start reference (only applies to SLEEP)
+        String sleepStartStr = message.getHeader(HEADER_SLEEP_START, String.class);
+        if (sleepStartStr != null) {
+            job.setSleepStart(SleepStart.valueOf(sleepStartStr.toUpperCase()));
         }
 
         // Key and mode
@@ -108,5 +118,10 @@ public class IngestProcessor implements Processor {
 
         // Handle according to key mode
         jobStore.handleIncomingJob(job);
+    }
+
+    private Instant calculateNextCronFire(String cronExpression) {
+        // TODO: Use cron-utils or similar library to calculate next fire time
+        throw new UnsupportedOperationException("CRON support not yet implemented");
     }
 }

@@ -3,7 +3,8 @@ CREATE TABLE scheduled_jobs (
     id UUID PRIMARY KEY,
     job_key TEXT,
     key_mode TEXT NOT NULL DEFAULT 'QUEUE',
-    delay_start TEXT NOT NULL DEFAULT 'SELF',
+    sleep_start TEXT NOT NULL DEFAULT 'SELF',
+    cron_expression TEXT,
 
     fire_at TIMESTAMPTZ NOT NULL,
     effective_fire_at TIMESTAMPTZ,

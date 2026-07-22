@@ -47,15 +47,16 @@ All scheduler headers are prefixed with `SCHEDULER_`:
 | Header | Required | Description | Example |
 |--------|----------|-------------|---------|
 | `SCHEDULER_DESTINATION` | Yes | Target topic for fired message | `orders.process` |
-| `SCHEDULER_FIRE_AT` | No* | Absolute fire time (ISO 8601) | `2026-07-22T15:00:00Z` |
-| `SCHEDULER_DELAY` | No* | Relative delay (ISO 8601 duration) | `PT5M` |
-| `SCHEDULER_DELAY_START` | No | Reference for delay: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
+| `SCHEDULER_AT` | No* | Absolute fire time (ISO 8601) — like `at` command | `2026-07-22T15:00:00Z` |
+| `SCHEDULER_SLEEP` | No* | Relative delay (ISO 8601 duration) — like `sleep` command | `PT5M` |
+| `SCHEDULER_CRON` | No* | Cron expression for recurring jobs — like `cron` | `0 9 * * *` |
+| `SCHEDULER_SLEEP_START` | No | Reference for sleep: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
 | `SCHEDULER_KEY` | No | Job key for ordering | `order-123` |
 | `SCHEDULER_KEY_MODE` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
 | `SCHEDULER_RETRIES` | No | Max retries (overrides global default) | `3` |
 | `SCHEDULER_ADVISORY_HEADERS` | No | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
 
-*Either `SCHEDULER_FIRE_AT` or `SCHEDULER_DELAY` should be specified. If neither, fires immediately.
+*`SCHEDULER_AT`, `SCHEDULER_SLEEP`, and `SCHEDULER_CRON` are mutually exclusive. If none specified, fires immediately.
 
 ## Key Modes
 
