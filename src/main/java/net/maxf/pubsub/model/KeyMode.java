@@ -1,4 +1,4 @@
-package net.maxf.scheduler.model;
+package net.maxf.pubsub.model;
 
 public enum KeyMode {
     QUEUE,      // Wait for prior jobs with same key to complete

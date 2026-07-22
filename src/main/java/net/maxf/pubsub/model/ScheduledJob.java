@@ -1,4 +1,4 @@
-package net.maxf.scheduler.model;
+package net.maxf.pubsub.model;
 
 import java.time.Instant;
 import java.util.Map;

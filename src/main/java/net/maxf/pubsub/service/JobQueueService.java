@@ -1,7 +1,7 @@
-package net.maxf.scheduler.service;
+package net.maxf.pubsub.service;
 
-import net.maxf.scheduler.model.JobState;
-import net.maxf.scheduler.model.ScheduledJob;
+import net.maxf.pubsub.model.JobState;
+import net.maxf.pubsub.model.ScheduledJob;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -62,7 +62,7 @@ public class JobQueueService {
             job.setState(JobState.FIRING);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.scheduler.model.AdvisoryEvent.JOB_FIRING);
+            advisoryService.publish(job, net.maxf.pubsub.model.AdvisoryEvent.JOB_FIRING);
 
             // Fire to destination via Camel direct endpoint
             fireToDestination(job);
@@ -70,7 +70,7 @@ public class JobQueueService {
             job.setState(JobState.COMPLETE);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.scheduler.model.AdvisoryEvent.JOB_COMPLETE);
+            advisoryService.publish(job, net.maxf.pubsub.model.AdvisoryEvent.JOB_COMPLETE);
 
             // Promote waiting successors
             jobStore.promoteSuccessors(job);
@@ -101,7 +101,7 @@ public class JobQueueService {
                     job.getId(), job.getMaxRetries(), e.getMessage());
             job.setState(JobState.FAILED);
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.scheduler.model.AdvisoryEvent.JOB_FAILED);
+            advisoryService.publish(job, net.maxf.pubsub.model.AdvisoryEvent.JOB_FAILED);
             jobStore.cascadeFailure(job);
         }
     }

@@ -1,4 +1,4 @@
-package net.maxf.scheduler.model;
+package net.maxf.pubsub.model;
 
 public enum SleepStart {
     SELF,   // Sleep from this job's arrival time (default)
