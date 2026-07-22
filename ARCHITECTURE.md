@@ -52,7 +52,7 @@ All scheduler headers are prefixed with `SCHEDULER_`:
 | `SCHEDULER_CRON` | No* | Cron expression for recurring jobs — like `cron` | `0 9 * * *` |
 | `SCHEDULER_SLEEP_START` | No | Reference for sleep: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
 | `SCHEDULER_KEY` | No | Job key for ordering | `order-123` |
-| `SCHEDULER_KEY_MODE` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
+| `SCHEDULER_KEY_POLICY` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
 | `SCHEDULER_RETRIES` | No | Max retries (overrides global default) | `3` |
 | `SCHEDULER_ADVISORY_HEADERS` | No | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
 

@@ -10,7 +10,7 @@ public class ScheduledJob implements Delayed {
 
     private UUID id;
     private String jobKey;
-    private KeyMode keyMode;
+    private KeyPolicy keyPolicy;
     private SleepStart sleepStart;
     private String cronExpression;
 
@@ -42,7 +42,7 @@ public class ScheduledJob implements Delayed {
     public ScheduledJob() {
         this.id = UUID.randomUUID();
         this.state = JobState.PENDING;
-        this.keyMode = KeyMode.QUEUE;
+        this.keyPolicy = KeyPolicy.QUEUE;
         this.sleepStart = SleepStart.SELF;
         this.retryCount = 0;
         this.version = 0;
@@ -75,8 +75,8 @@ public class ScheduledJob implements Delayed {
     public String getJobKey() { return jobKey; }
     public void setJobKey(String jobKey) { this.jobKey = jobKey; }
 
-    public KeyMode getKeyMode() { return keyMode; }
-    public void setKeyMode(KeyMode keyMode) { this.keyMode = keyMode; }
+    public KeyPolicy getKeyPolicy() { return keyPolicy; }
+    public void setKeyPolicy(KeyPolicy keyPolicy) { this.keyPolicy = keyPolicy; }
 
     public SleepStart getSleepStart() { return sleepStart; }
     public void setSleepStart(SleepStart sleepStart) { this.sleepStart = sleepStart; }

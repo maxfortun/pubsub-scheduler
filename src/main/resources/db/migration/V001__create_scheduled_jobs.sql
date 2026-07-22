@@ -2,7 +2,7 @@
 CREATE TABLE scheduled_jobs (
     id UUID PRIMARY KEY,
     job_key TEXT,
-    key_mode TEXT NOT NULL DEFAULT 'QUEUE',
+    key_policy TEXT NOT NULL DEFAULT 'QUEUE',
     sleep_start TEXT NOT NULL DEFAULT 'SELF',
     cron_expression TEXT,
 

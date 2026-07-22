@@ -1,7 +1,7 @@
 package net.maxf.pubsub.scheduler.processor;
 
 import net.maxf.pubsub.scheduler.model.SleepStart;
-import net.maxf.pubsub.scheduler.model.KeyMode;
+import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -31,7 +31,7 @@ public class IngestProcessor implements Processor {
     private static final String HEADER_SLEEP_START = HEADER_PREFIX + "SLEEP_START";
     private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
     private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
-    private static final String HEADER_KEY_MODE = HEADER_PREFIX + "KEY_MODE";
+    private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
     private static final String HEADER_RETRIES = HEADER_PREFIX + "RETRIES";
     private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "ADVISORY_HEADERS";
 
@@ -84,9 +84,9 @@ public class IngestProcessor implements Processor {
 
         // Key and mode
         job.setJobKey(message.getHeader(HEADER_KEY, String.class));
-        String keyModeStr = message.getHeader(HEADER_KEY_MODE, String.class);
-        if (keyModeStr != null) {
-            job.setKeyMode(KeyMode.valueOf(keyModeStr.toUpperCase()));
+        String keyPolicyStr = message.getHeader(HEADER_KEY_POLICY, String.class);
+        if (keyPolicyStr != null) {
+            job.setKeyPolicy(KeyPolicy.valueOf(keyPolicyStr.toUpperCase()));
         }
 
         // Retries
@@ -114,7 +114,7 @@ public class IngestProcessor implements Processor {
 
         LOG.infof("Ingested job %s: destination=%s, fireAt=%s, key=%s, mode=%s",
                 job.getId(), job.getDestinationTopic(), job.getFireAt(),
-                job.getJobKey(), job.getKeyMode());
+                job.getJobKey(), job.getKeyPolicy());
 
         // Handle according to key mode
         jobStore.handleIncomingJob(job);

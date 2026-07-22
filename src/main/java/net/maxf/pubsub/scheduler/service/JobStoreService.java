@@ -2,7 +2,7 @@ package net.maxf.pubsub.scheduler.service;
 
 import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
-import net.maxf.pubsub.scheduler.model.KeyMode;
+import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -76,7 +76,7 @@ public class JobStoreService {
 
         List<ScheduledJob> existingJobs = findPendingByKey(job.getJobKey());
 
-        switch (job.getKeyMode()) {
+        switch (job.getKeyPolicy()) {
             case SKIP -> {
                 if (!existingJobs.isEmpty()) {
                     advisoryService.publish(job, AdvisoryEvent.JOB_SKIPPED);
