@@ -206,6 +206,78 @@ SCHEDULER_CRON_MIN_GAP: PT3M
 SCHEDULER_CRON_GAP_POLICY: DELAY
 ```
 
+## Docker
+
+### Build
+
+```bash
+# Build image
+docker build -t pubsub-scheduler .
+
+# Build with custom tag
+docker build -t myregistry/pubsub-scheduler:1.0.0 .
+```
+
+### Run Standalone
+
+```bash
+docker run -d \
+  --name scheduler \
+  -p 8080:8080 \
+  -e QUARKUS_PROFILE=kafka \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/scheduler \
+  -e QUARKUS_DATASOURCE_USERNAME=scheduler \
+  -e QUARKUS_DATASOURCE_PASSWORD=secret \
+  pubsub-scheduler
+```
+
+### Docker Compose
+
+The included `docker-compose.yml` runs the full stack:
+- **CockroachDB** — database with schema auto-init
+- **Kafka** — KRaft mode (no ZooKeeper)
+- **Scheduler** — the application
+- **Test runner** — integration tests
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Run integration tests
+docker-compose up test
+
+# View scheduler logs
+docker-compose logs -f scheduler
+
+# Stop and remove
+docker-compose down
+
+# Stop and remove with volumes (clean slate)
+docker-compose down -v
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `QUARKUS_PROFILE` | Config profile (`kafka`, `activemq`) | `kafka` |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers | `localhost:9092` |
+| `QUARKUS_DATASOURCE_JDBC_URL` | Database JDBC URL | `jdbc:postgresql://localhost:5432/scheduler` |
+| `QUARKUS_DATASOURCE_USERNAME` | Database username | `scheduler` |
+| `QUARKUS_DATASOURCE_PASSWORD` | Database password | `scheduler` |
+| `SCHEDULER_IN` | Inbound endpoint | `kafka:scheduler.in` |
+| `SCHEDULER_ADVISORY` | Advisory endpoint | `kafka:scheduler.advisory` |
+| `SCHEDULER_DLQ` | Dead letter queue endpoint | `kafka:scheduler.dlq` |
+| `SCHEDULER_DEFAULT_RETRIES` | Default retry count | `3` |
+
+### Image Details
+
+- **Base image:** `bellsoft/liberica-openjre-alpine:21` (~90MB)
+- **Final image size:** ~150MB
+- **Exposed port:** 8080
+- **Health endpoint:** `/q/health`
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
