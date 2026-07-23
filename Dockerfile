@@ -1,20 +1,19 @@
-# Stage 1: Build
-FROM bellsoft/liberica-openjdk-alpine:21 AS builder
+# Stage 1: Build (Gradle pre-installed)
+FROM gradle:8.14-jdk21-alpine AS builder
 
 WORKDIR /app
 
-# Copy gradle files first for caching
-COPY gradle gradle
-COPY gradlew build.gradle.kts settings.gradle.kts gradle.properties ./
+# Copy gradle files first for dependency caching
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 
-# Download dependencies
-RUN ./gradlew dependencies --no-daemon
+# Download dependencies (cached layer)
+RUN gradle dependencies --no-daemon
 
 # Copy source
 COPY src src
 
 # Build
-RUN ./gradlew build -x test --no-daemon
+RUN gradle build -x test --no-daemon
 
 # Stage 2: Runtime (~90MB)
 FROM bellsoft/liberica-openjre-alpine:21
