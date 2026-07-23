@@ -1,6 +1,35 @@
 # PubSub Scheduler
 
-A distributed, pub/sub-agnostic message scheduler. Publish messages with scheduling headers; the scheduler fires them to destination topics at the specified time.
+A distributed, pub/sub-agnostic message scheduler for Kafka, ActiveMQ, and other messaging systems.
+
+## About
+
+PubSub Scheduler decouples scheduled message delivery from your messaging broker. Instead of relying on broker-specific scheduling features (like ActiveMQ's `AMQ_SCHEDULED_*` headers), you publish messages with `SCHEDULER_*` headers to a scheduling topic, and the scheduler delivers them to any destination topic at the specified time.
+
+**Why use this instead of ActiveMQ scheduled delivery?**
+
+| Feature | ActiveMQ | PubSub Scheduler |
+|---------|----------|------------------|
+| Delay | `AMQ_SCHEDULED_DELAY` (ms) | `SCHEDULER_SLEEP` (ISO 8601 duration) |
+| Absolute time | Not supported | `SCHEDULER_AT` |
+| Cron | `AMQ_SCHEDULED_CRON` | `SCHEDULER_CRON` |
+| Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_SLEEP_REPEAT` |
+| Key-based ordering | Not supported | `SCHEDULER_KEY` + `SCHEDULER_KEY_POLICY` |
+| Prevent concurrent runs | Not supported | `SCHEDULER_CRON_CONCURRENT=false` |
+| Min gap between runs | Not supported | `SCHEDULER_CRON_MIN_GAP` |
+| Misfire handling | Not supported | `SCHEDULER_CRON_MISFIRE_POLICY` |
+| Lifecycle events | Not supported | Full advisory topic |
+| Cancel/Replace jobs | Not supported | `REPLACE`, `SKIP` policies + REST API |
+| REST API | JMX only | Full REST API |
+| Broker-agnostic | ActiveMQ only | Kafka, ActiveMQ, RabbitMQ, etc. |
+| Multi-region HA | Broker-dependent | Built-in with CockroachDB |
+
+**Key benefits:**
+- **Broker-agnostic** — same scheduling semantics across Kafka, ActiveMQ, RabbitMQ, or any Camel-supported transport
+- **Job ordering** — queue jobs by key, ensuring sequential processing
+- **Observability** — advisory topic streams all job lifecycle events
+- **Control** — REST API to list, inspect, and cancel scheduled jobs
+- **Resilient** — database-backed persistence with multi-region support
 
 ## Quick Start
 
@@ -84,6 +113,7 @@ If none specified, fires immediately.
 | Header | Description | Example |
 |--------|-------------|---------|
 | `SCHEDULER_SLEEP_START` | Reference point for sleep (default: `SELF`) | `SELF`, `PREV` |
+| `SCHEDULER_SLEEP_REPEAT` | Number of times to repeat (default: 1, one-shot) | `10`, `-1` (infinite) |
 
 **Sleep Start:**
 
@@ -91,6 +121,13 @@ If none specified, fires immediately.
 |-------|----------|
 | `SELF` | Sleep from this job's arrival time |
 | `PREV` | Sleep from predecessor's completion (requires `SCHEDULER_KEY` with `QUEUE` policy) |
+
+**Example: Repeat every 5 minutes, 10 times**
+```
+SCHEDULER_DESTINATION: health.check
+SCHEDULER_SLEEP: PT5M
+SCHEDULER_SLEEP_REPEAT: 10
+```
 
 ### Cron Options
 

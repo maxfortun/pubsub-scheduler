@@ -12,6 +12,8 @@ public class ScheduledJob implements Delayed {
     private String jobKey;
     private KeyPolicy keyPolicy;
     private SleepStart sleepStart;
+    private String sleepDuration;
+    private int sleepRepeat;
     private String cronExpression;
 
     private Instant fireAt;
@@ -44,6 +46,7 @@ public class ScheduledJob implements Delayed {
         this.state = JobState.PENDING;
         this.keyPolicy = KeyPolicy.QUEUE;
         this.sleepStart = SleepStart.SELF;
+        this.sleepRepeat = 1;
         this.retryCount = 0;
         this.version = 0;
         this.createdAt = Instant.now();
@@ -83,6 +86,14 @@ public class ScheduledJob implements Delayed {
 
     public String getCronExpression() { return cronExpression; }
     public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
+
+    public String getSleepDuration() { return sleepDuration; }
+    public void setSleepDuration(String sleepDuration) { this.sleepDuration = sleepDuration; }
+
+    public int getSleepRepeat() { return sleepRepeat; }
+    public void setSleepRepeat(int sleepRepeat) { this.sleepRepeat = sleepRepeat; }
+
+    public boolean isRepeating() { return sleepRepeat != 1 || cronExpression != null; }
 
     public boolean isCron() { return cronExpression != null; }
 

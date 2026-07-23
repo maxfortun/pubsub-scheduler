@@ -29,6 +29,7 @@ public class IngestProcessor implements Processor {
     private static final String HEADER_SLEEP = HEADER_PREFIX + "SLEEP";
     private static final String HEADER_CRON = HEADER_PREFIX + "CRON";
     private static final String HEADER_SLEEP_START = HEADER_PREFIX + "SLEEP_START";
+    private static final String HEADER_SLEEP_REPEAT = HEADER_PREFIX + "SLEEP_REPEAT";
     private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
     private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
     private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
@@ -68,6 +69,7 @@ public class IngestProcessor implements Processor {
         } else if (sleepStr != null) {
             Duration sleep = Duration.parse(sleepStr);
             job.setFireAt(Instant.now().plus(sleep));
+            job.setSleepDuration(sleepStr);
         } else if (cronStr != null) {
             job.setCronExpression(cronStr);
             job.setFireAt(calculateNextCronFire(cronStr));
@@ -76,10 +78,14 @@ public class IngestProcessor implements Processor {
             job.setFireAt(Instant.now());
         }
 
-        // Sleep start reference (only applies to SLEEP)
+        // Sleep options (only applies to SLEEP)
         String sleepStartStr = message.getHeader(HEADER_SLEEP_START, String.class);
         if (sleepStartStr != null) {
             job.setSleepStart(SleepStart.valueOf(sleepStartStr.toUpperCase()));
+        }
+        Integer sleepRepeat = message.getHeader(HEADER_SLEEP_REPEAT, Integer.class);
+        if (sleepRepeat != null) {
+            job.setSleepRepeat(sleepRepeat);
         }
 
         // Key and mode

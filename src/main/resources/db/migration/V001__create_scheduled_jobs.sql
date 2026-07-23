@@ -4,6 +4,8 @@ CREATE TABLE scheduled_jobs (
     job_key TEXT,
     key_policy TEXT NOT NULL DEFAULT 'QUEUE',
     sleep_start TEXT NOT NULL DEFAULT 'SELF',
+    sleep_duration TEXT,
+    sleep_repeat INT NOT NULL DEFAULT 1,
     cron_expression TEXT,
 
     fire_at TIMESTAMPTZ NOT NULL,
