@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM eclipse-temurin:21-jdk AS builder
+FROM bellsoft/liberica-openjdk-alpine:21 AS builder
 
 WORKDIR /app
 
@@ -16,8 +16,8 @@ COPY src src
 # Build
 RUN ./gradlew build -x test --no-daemon
 
-# Stage 2: Runtime
-FROM eclipse-temurin:21-jre
+# Stage 2: Runtime (~90MB)
+FROM bellsoft/liberica-openjre-alpine:21
 
 WORKDIR /app
 
@@ -31,4 +31,4 @@ ENV JAVA_OPTS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/quarkus-run.jar"]
+ENTRYPOINT ["java", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", "-jar", "/app/quarkus-run.jar"]
