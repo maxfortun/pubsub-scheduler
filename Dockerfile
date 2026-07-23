@@ -6,16 +6,18 @@ WORKDIR /app
 # Install custom CA certificates (for corporate proxies like Zscaler)
 # Place .crt/.pem files in certs/ directory
 COPY certs/ /tmp/certs/
-RUN if ls /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer 2>/dev/null; then \
-      cp /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer /usr/local/share/ca-certificates/ 2>/dev/null || true; \
+RUN set -e; \
+    JAVA_CACERTS="${JAVA_HOME}/lib/security/cacerts"; \
+    for cert in /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer; do \
+      if [ -f "$cert" ]; then \
+        echo "Installing certificate: $cert"; \
+        cp "$cert" /usr/local/share/ca-certificates/ 2>/dev/null || true; \
+        keytool -import -trustcacerts -keystore "$JAVA_CACERTS" -storepass changeit -noprompt \
+          -alias "$(basename $cert .crt)" -file "$cert" || true; \
+      fi; \
+    done; \
+    if command -v update-ca-certificates >/dev/null 2>&1; then \
       update-ca-certificates; \
-      # Also add to Java truststore
-      for cert in /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer; do \
-        if [ -f "$cert" ]; then \
-          keytool -import -trustcacerts -cacerts -storepass changeit -noprompt \
-            -alias "$(basename $cert)" -file "$cert" 2>/dev/null || true; \
-        fi; \
-      done; \
     fi
 
 # Copy gradle files first for dependency caching
