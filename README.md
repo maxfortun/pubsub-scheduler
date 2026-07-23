@@ -174,7 +174,7 @@ SCHEDULER_CRON_COUNT: 30
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_RETRIES` | Max retry attempts (default: 3) | `5` |
+| `SCHEDULER_RETRY_COUNT` | Max retry attempts (default: 3) | `5` |
 
 ### Advisory Events
 
@@ -323,7 +323,7 @@ docker-compose down -v
 | `SCHEDULER_IN` | Inbound endpoint | `kafka:scheduler.in` |
 | `SCHEDULER_ADVISORY` | Advisory endpoint | `kafka:scheduler.advisory` |
 | `SCHEDULER_DLQ` | Dead letter queue endpoint | `kafka:scheduler.dlq` |
-| `SCHEDULER_DEFAULT_RETRIES` | Default retry count | `3` |
+| `SCHEDULER_DEFAULT_RETRY_COUNT` | Default retry count | `3` |
 
 ### Image Details
 

@@ -33,7 +33,7 @@ public class IngestProcessor implements Processor {
     private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
     private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
     private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
-    private static final String HEADER_RETRIES = HEADER_PREFIX + "RETRIES";
+    private static final String HEADER_RETRY_COUNT = HEADER_PREFIX + "RETRY_COUNT";
     private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "ADVISORY_HEADERS";
     private static final String HEADER_CRON_END = HEADER_PREFIX + "CRON_END";
     private static final String HEADER_CRON_COUNT = HEADER_PREFIX + "CRON_COUNT";
@@ -111,7 +111,7 @@ public class IngestProcessor implements Processor {
         }
 
         // Retries
-        Integer retries = message.getHeader(HEADER_RETRIES, Integer.class);
+        Integer retries = message.getHeader(HEADER_RETRY_COUNT, Integer.class);
         job.setMaxRetries(retries != null ? retries : defaultRetries);
 
         // Advisory header filter
