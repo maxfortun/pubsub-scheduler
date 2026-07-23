@@ -154,4 +154,33 @@ public class JobStoreService {
         // TODO: Query all PENDING jobs for recovery
         return List.of();
     }
+
+    public List<ScheduledJob> findJobs(JobState state, String jobKey, int limit) {
+        // TODO: Implement JDBC query with filters
+        LOG.debugf("Finding jobs: state=%s, key=%s, limit=%d", state, jobKey, limit);
+        return List.of();
+    }
+
+    public boolean cancelJob(UUID id) {
+        Optional<ScheduledJob> jobOpt = findById(id);
+        if (jobOpt.isEmpty()) {
+            return false;
+        }
+        ScheduledJob job = jobOpt.get();
+        if (job.getState() == JobState.COMPLETE || job.getState() == JobState.FAILED) {
+            return false;
+        }
+        job.setState(JobState.FAILED);
+        job.setLastError("Cancelled via API");
+        update(job);
+        jobQueue.remove(id);
+        advisoryService.publish(job, AdvisoryEvent.JOB_FAILED);
+        cascadeFailure(job);
+        return true;
+    }
+
+    public net.maxf.pubsub.scheduler.rest.JobResource.JobStats getStats() {
+        // TODO: Implement count queries
+        return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(0, 0, 0, 0, 0, 0);
+    }
 }
