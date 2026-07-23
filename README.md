@@ -4,9 +4,15 @@ A distributed, pub/sub-agnostic message scheduler for Kafka, ActiveMQ, and other
 
 ## About
 
-PubSub Scheduler decouples scheduled message delivery from your messaging broker. Instead of relying on broker-specific scheduling features (like ActiveMQ's `AMQ_SCHEDULED_*` headers), you publish messages with `SCHEDULER_*` headers to a scheduling topic, and the scheduler delivers them to any destination topic at the specified time.
+In the world of pub/sub, sometimes messages need to be delayed. "Send this email in 24 hours." "Retry this payment in 5 minutes." "Run this report every morning at 9am."
 
-**Why use this instead of ActiveMQ scheduled delivery?**
+Some brokers, like ActiveMQ, have scheduling baked in — set `AMQ_SCHEDULED_DELAY` and you're done. But what if you're on Kafka? What if you're migrating between brokers and don't want to rewrite your scheduling logic? What if ActiveMQ's scheduling isn't quite enough — you need job ordering, lifecycle events, or a way to cancel jobs mid-flight?
+
+PubSub Scheduler is a broker-neutral implementation of delayed and scheduled message delivery. It sits between your producers and your messaging infrastructure, accepting messages with `SCHEDULER_*` headers and delivering them to any destination topic at the right time. Built on Apache Camel, it works with Kafka, ActiveMQ, RabbitMQ, and dozens of other transports out of the box. The same scheduling semantics, everywhere.
+
+It's designed for production: CockroachDB-backed persistence for multi-region deployments, Kubernetes-native with blue/green HA, push-based timing (no polling), and a REST API for operational control. When things go wrong, you get advisory events, dead-letter queues, and configurable retry policies.
+
+### Feature Parity with ActiveMQ (and Beyond)
 
 | Feature | ActiveMQ | PubSub Scheduler |
 |---------|----------|------------------|
@@ -14,6 +20,7 @@ PubSub Scheduler decouples scheduled message delivery from your messaging broker
 | Absolute time | Not supported | `SCHEDULER_AT` |
 | Cron | `AMQ_SCHEDULED_CRON` | `SCHEDULER_CRON` |
 | Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_SLEEP_REPEAT` |
+| Period | `AMQ_SCHEDULED_PERIOD` | `SCHEDULER_SLEEP` (with `SLEEP_REPEAT`) |
 | Key-based ordering | Not supported | `SCHEDULER_KEY` + `SCHEDULER_KEY_POLICY` |
 | Prevent concurrent runs | Not supported | `SCHEDULER_CRON_CONCURRENT=false` |
 | Min gap between runs | Not supported | `SCHEDULER_CRON_GAP_MIN` |
@@ -23,13 +30,6 @@ PubSub Scheduler decouples scheduled message delivery from your messaging broker
 | REST API | JMX only | Full REST API |
 | Broker-agnostic | ActiveMQ only | Kafka, ActiveMQ, RabbitMQ, etc. |
 | Multi-region HA | Broker-dependent | Built-in with CockroachDB |
-
-**Key benefits:**
-- **Broker-agnostic** — same scheduling semantics across Kafka, ActiveMQ, RabbitMQ, or any Camel-supported transport
-- **Job ordering** — queue jobs by key, ensuring sequential processing
-- **Observability** — advisory topic streams all job lifecycle events
-- **Control** — REST API to list, inspect, and cancel scheduled jobs
-- **Resilient** — database-backed persistence with multi-region support
 
 ## Quick Start
 
