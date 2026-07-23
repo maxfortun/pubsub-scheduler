@@ -134,7 +134,7 @@ services:
         echo "Topics created successfully"
 
   # Scheduler application
-  scheduler:
+  app:
     build: .
     ports:
       - "8080:8080"
@@ -164,7 +164,7 @@ services:
   test:
     image: apache/kafka:4.3.1
     depends_on:
-      scheduler:
+      app:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -228,7 +228,7 @@ services:
         # Test 4: Health check
         echo ""
         echo "Test 4: Health endpoint"
-        wget -q -O - http://scheduler:8080/q/health && echo "" && echo "PASS: Health check OK" || echo "FAIL: Health check failed"
+        wget -q -O - http://app:8080/q/health && echo "" && echo "PASS: Health check OK" || echo "FAIL: Health check failed"
 
         echo ""
         echo "=========================================="
