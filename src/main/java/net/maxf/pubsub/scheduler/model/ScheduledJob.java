@@ -15,6 +15,9 @@ public class ScheduledJob implements Delayed {
     private String sleepDuration;
     private int sleepRepeat;
     private String cronExpression;
+    private Instant cronEnd;
+    private Integer cronMaxCount;
+    private int cronFireCount;
 
     private Instant fireAt;
     private Instant effectiveFireAt;
@@ -96,6 +99,15 @@ public class ScheduledJob implements Delayed {
     public boolean isRepeating() { return sleepRepeat != 1 || cronExpression != null; }
 
     public boolean isCron() { return cronExpression != null; }
+
+    public Instant getCronEnd() { return cronEnd; }
+    public void setCronEnd(Instant cronEnd) { this.cronEnd = cronEnd; }
+
+    public Integer getCronMaxCount() { return cronMaxCount; }
+    public void setCronMaxCount(Integer cronMaxCount) { this.cronMaxCount = cronMaxCount; }
+
+    public int getCronFireCount() { return cronFireCount; }
+    public void setCronFireCount(int cronFireCount) { this.cronFireCount = cronFireCount; }
 
     public Instant getFireAt() { return fireAt; }
     public void setFireAt(Instant fireAt) { this.fireAt = fireAt; }

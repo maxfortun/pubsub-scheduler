@@ -35,6 +35,8 @@ public class IngestProcessor implements Processor {
     private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
     private static final String HEADER_RETRIES = HEADER_PREFIX + "RETRIES";
     private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "ADVISORY_HEADERS";
+    private static final String HEADER_CRON_END = HEADER_PREFIX + "CRON_END";
+    private static final String HEADER_CRON_COUNT = HEADER_PREFIX + "CRON_COUNT";
 
     @Inject
     JobStoreService jobStore;
@@ -73,6 +75,19 @@ public class IngestProcessor implements Processor {
         } else if (cronStr != null) {
             job.setCronExpression(cronStr);
             job.setFireAt(calculateNextCronFire(cronStr));
+
+            // Cron end conditions (mutually exclusive)
+            String cronEndStr = message.getHeader(HEADER_CRON_END, String.class);
+            Integer cronCount = message.getHeader(HEADER_CRON_COUNT, Integer.class);
+            if (cronEndStr != null && cronCount != null) {
+                throw new IllegalArgumentException("SCHEDULER_CRON_END and SCHEDULER_CRON_COUNT are mutually exclusive");
+            }
+            if (cronEndStr != null) {
+                job.setCronEnd(Instant.parse(cronEndStr));
+            }
+            if (cronCount != null) {
+                job.setCronMaxCount(cronCount);
+            }
         } else {
             // Immediate
             job.setFireAt(Instant.now());

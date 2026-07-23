@@ -137,8 +137,10 @@ SCHEDULER_SLEEP_REPEAT: 10
 | `SCHEDULER_CRON_MIN_GAP` | Minimum delay between completions (ISO 8601 duration) | `PT10M` |
 | `SCHEDULER_CRON_GAP_POLICY` | Behavior when gap not met (default: `DELAY`) | `DELAY`, `SKIP` |
 | `SCHEDULER_CRON_MISFIRE_POLICY` | Behavior on missed execution (default: `SKIP`) | `SKIP`, `CATCH_UP` |
-| `SCHEDULER_CRON_END` | End date for recurring job (ISO 8601) | `2026-12-31T23:59:59Z` |
-| `SCHEDULER_CRON_COUNT` | Max number of executions | `100` |
+| `SCHEDULER_CRON_END` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
+| `SCHEDULER_CRON_COUNT` | Max number of executions* | `100` |
+
+*`SCHEDULER_CRON_END` and `SCHEDULER_CRON_COUNT` are mutually exclusive.
 
 **Cron Gap Policies:**
 
