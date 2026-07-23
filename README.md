@@ -482,6 +482,68 @@ env:
 quarkus.datasource.password=${DB_PASSWORD}
 ```
 
+### Kafka Security
+
+PubSub Scheduler supports all Kafka security protocols. Example configurations are in `src/main/resources/examples/`.
+
+#### SSL/TLS (Encryption)
+
+```properties
+kafka.security.protocol=SSL
+kafka.ssl.truststore.location=/etc/kafka/certs/truststore.jks
+kafka.ssl.truststore.password=${sm:kafka/ssl#truststore-password}
+
+# For mutual TLS (client cert authentication)
+kafka.ssl.keystore.location=/etc/kafka/certs/keystore.jks
+kafka.ssl.keystore.password=${sm:kafka/ssl#keystore-password}
+```
+
+#### SASL/PLAIN (Username/Password)
+
+```properties
+kafka.security.protocol=SASL_SSL
+kafka.sasl.mechanism=PLAIN
+kafka.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+  username="${sm:kafka/sasl#username}" \
+  password="${sm:kafka/sasl#password}";
+```
+
+#### SASL/SCRAM (Challenge-Response)
+
+More secure than PLAIN — password never sent over wire:
+
+```properties
+kafka.security.protocol=SASL_SSL
+kafka.sasl.mechanism=SCRAM-SHA-512
+kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+  username="${sm:kafka/sasl#username}" \
+  password="${sm:kafka/sasl#password}";
+```
+
+#### OAUTHBEARER (OAuth 2.0 / OIDC)
+
+Token-based authentication for modern identity providers:
+
+```properties
+kafka.security.protocol=SASL_SSL
+kafka.sasl.mechanism=OAUTHBEARER
+kafka.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+  clientId="${sm:kafka/oauth#client-id}" \
+  clientSecret="${sm:kafka/oauth#client-secret}" \
+  scope="kafka" \
+  tokenEndpointUrl="https://auth.example.com/oauth/token";
+```
+
+Works with:
+- Keycloak
+- Auth0
+- Azure AD / Entra ID
+- Okta
+- Confluent Cloud Identity Pools
+- Any OAuth 2.0 / OIDC provider
+
+See `application-kafka-oauthbearer.properties` for provider-specific examples.
+
 ### Image Details
 
 - **Base image:** `bellsoft/liberica-openjre-alpine:21` (~90MB)
