@@ -68,7 +68,7 @@ services:
               last_completed_at TIMESTAMPTZ,
               fire_count INT DEFAULT 0,
               cron_concurrent BOOLEAN DEFAULT false,
-              cron_min_gap INTERVAL,
+              cron_gap_min INTERVAL,
               cron_gap_policy TEXT DEFAULT 'DELAY',
               cron_misfire_policy TEXT DEFAULT 'SKIP',
               cron_end_at TIMESTAMPTZ,

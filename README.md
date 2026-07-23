@@ -16,7 +16,7 @@ PubSub Scheduler decouples scheduled message delivery from your messaging broker
 | Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_SLEEP_REPEAT` |
 | Key-based ordering | Not supported | `SCHEDULER_KEY` + `SCHEDULER_KEY_POLICY` |
 | Prevent concurrent runs | Not supported | `SCHEDULER_CRON_CONCURRENT=false` |
-| Min gap between runs | Not supported | `SCHEDULER_CRON_MIN_GAP` |
+| Min gap between runs | Not supported | `SCHEDULER_CRON_GAP_MIN` |
 | Misfire handling | Not supported | `SCHEDULER_CRON_MISFIRE_POLICY` |
 | Lifecycle events | Not supported | Full advisory topic |
 | Cancel/Replace jobs | Not supported | `REPLACE`, `SKIP` policies + REST API |
@@ -134,7 +134,7 @@ SCHEDULER_SLEEP_REPEAT: 10
 | Header | Description | Example |
 |--------|-------------|---------|
 | `SCHEDULER_CRON_CONCURRENT` | Allow overlapping executions (default: `false`) | `true`, `false` |
-| `SCHEDULER_CRON_MIN_GAP` | Minimum delay between completions (ISO 8601 duration) | `PT10M` |
+| `SCHEDULER_CRON_GAP_MIN` | Minimum delay between completions (ISO 8601 duration) | `PT10M` |
 | `SCHEDULER_CRON_GAP_POLICY` | Behavior when gap not met (default: `DELAY`) | `DELAY`, `SKIP` |
 | `SCHEDULER_CRON_MISFIRE_POLICY` | Behavior on missed execution (default: `SKIP`) | `SKIP`, `CATCH_UP` |
 | `SCHEDULER_CRON_END` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
@@ -255,7 +255,7 @@ SCHEDULER_SLEEP: PT30S
 SCHEDULER_DESTINATION: api.sync
 SCHEDULER_CRON: */5 * * * *
 SCHEDULER_CRON_CONCURRENT: false
-SCHEDULER_CRON_MIN_GAP: PT3M
+SCHEDULER_CRON_GAP_MIN: PT3M
 SCHEDULER_CRON_GAP_POLICY: DELAY
 ```
 
