@@ -311,21 +311,89 @@ docker-compose down
 docker-compose down -v
 ```
 
-### Environment Variables
+### Configuration Reference
+
+All configuration can be set via environment variables or `application.properties`.
+
+#### Core Settings
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `QUARKUS_PROFILE` | Config profile (`kafka`, `activemq`) | `kafka` |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers | `localhost:9092` |
-| `QUARKUS_DATASOURCE_JDBC_URL` | Database JDBC URL | `jdbc:postgresql://localhost:5432/scheduler` |
+| `HOSTNAME` | Instance identifier (auto-detected in containers) | `scheduler-0` |
+
+#### Database
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `QUARKUS_DATASOURCE_JDBC_URL` | JDBC connection URL | `jdbc:postgresql://localhost:5432/scheduler` |
 | `QUARKUS_DATASOURCE_USERNAME` | Database username | `scheduler` |
 | `QUARKUS_DATASOURCE_PASSWORD` | Database password | `scheduler` |
-| `SCHEDULER_IN` | Inbound endpoint | `kafka:scheduler.in` |
-| `SCHEDULER_ADVISORY` | Advisory endpoint | `kafka:scheduler.advisory` |
-| `SCHEDULER_DLQ` | Dead letter queue endpoint | `kafka:scheduler.dlq` |
-| `SCHEDULER_DEFAULT_RETRY_COUNT` | Default retry count | `3` |
-| `SCHEDULER_HEARTBEAT_INTERVAL` | Heartbeat interval in seconds | `30` |
+
+#### Messaging
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker addresses | `localhost:9092` |
+| `CAMEL_COMPONENT_KAFKA_BROKERS` | Camel Kafka brokers (same as above) | `localhost:9092` |
+| `SCHEDULER_IN` | Inbound schedule requests endpoint | `kafka:scheduler.in` |
+| `SCHEDULER_ADVISORY` | Advisory events endpoint | `kafka:scheduler.advisory` |
+| `SCHEDULER_DLQ` | Dead letter queue for failed ingests | `kafka:scheduler.dlq` |
+| `SCHEDULER_ADVISORY_DLQ` | Dead letter queue for failed advisories | `kafka:scheduler.advisory.dlq` |
+
+#### Job Defaults
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULER_DEFAULT_RETRY_COUNT` | Default max retries per job | `3` |
+| `SCHEDULER_DEFAULT_ADVISORY_HEADERS` | Regex for headers to include in advisories | `.*` |
+
+#### Scaling Mode
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULER_MODE` | `sharded` or `replicated` (see below) | `sharded` |
+
+**Sharded mode (default):**
+- Each instance owns jobs based on `hash(key) % instance_count`
+- Memory-efficient: each instance holds only its shard
+- Catch-up scan fills gaps from cross-instance ingest
+- Best for: high job counts, large payloads, cost-sensitive deployments
+
+**Replicated mode:**
+- All instances hold all jobs in memory
+- Optimistic locking ensures only one fires
+- Zero latency on ingest (no catch-up needed)
+- Best for: low-latency requirements, small job counts, small payloads
+
+```bash
+# Low-latency mode
+SCHEDULER_MODE=replicated
+
+# Memory-efficient mode (default)
+SCHEDULER_MODE=sharded
+```
+
+#### Instance Discovery
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULER_HEARTBEAT_INTERVAL` | Seconds between heartbeats | `30` |
 | `SCHEDULER_HEARTBEAT_STALE` | Seconds before instance considered dead | `120` |
+
+#### Catch-up Scan (Sharded Mode Only)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULER_CATCHUP_ENABLED` | Enable periodic catch-up scan | `true` |
+| `SCHEDULER_CATCHUP_INTERVAL` | Interval between scans (duration) | `60s` |
+
+The catch-up scan queries the database for PENDING jobs that belong to this shard but aren't in the local queue. This handles:
+- Jobs ingested on a different instance (Kafka partition != shard owner)
+- Jobs orphaned by instance crash
+- Jobs dropped during shard rebalance
+
+In replicated mode, catch-up is automatically disabled (not needed).
 
 ### Image Details
 

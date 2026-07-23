@@ -33,6 +33,13 @@ public class JobStoreService {
     @Inject
     InstanceRegistryService instanceRegistry;
 
+    @ConfigProperty(name = "scheduler.mode", defaultValue = "sharded")
+    String schedulerMode;
+
+    private boolean isReplicated() {
+        return "replicated".equalsIgnoreCase(schedulerMode);
+    }
+
     public void save(ScheduledJob job) {
         // TODO: Implement JDBC insert
         LOG.debugf("Saving job %s", job.getId());
@@ -72,8 +79,8 @@ public class JobStoreService {
             job.setState(JobState.PENDING);
             save(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-            // Only enqueue locally if we own this shard
-            if (ownsJob(job)) {
+            // Replicated mode: always enqueue; Sharded mode: only if we own it
+            if (shouldEnqueueLocally(job)) {
                 jobQueue.enqueue(job);
             }
             return;
@@ -91,7 +98,7 @@ public class JobStoreService {
                 job.setState(JobState.PENDING);
                 save(job);
                 advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                if (ownsJob(job)) {
+                if (shouldEnqueueLocally(job)) {
                     jobQueue.enqueue(job);
                 }
             }
@@ -100,15 +107,14 @@ public class JobStoreService {
                     existing.setState(JobState.FAILED);
                     existing.setLastError("Replaced by job " + job.getId());
                     update(existing);
-                    if (ownsJob(existing)) {
-                        jobQueue.remove(existing.getId());
-                    }
+                    // In replicated mode, all instances have it queued
+                    jobQueue.remove(existing.getId());
                     advisoryService.publish(existing, AdvisoryEvent.JOB_REPLACED);
                 }
                 job.setState(JobState.PENDING);
                 save(job);
                 advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                if (ownsJob(job)) {
+                if (shouldEnqueueLocally(job)) {
                     jobQueue.enqueue(job);
                 }
             }
@@ -117,7 +123,7 @@ public class JobStoreService {
                     job.setState(JobState.PENDING);
                     save(job);
                     advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                    if (ownsJob(job)) {
+                    if (shouldEnqueueLocally(job)) {
                         jobQueue.enqueue(job);
                     }
                 } else {
@@ -132,6 +138,10 @@ public class JobStoreService {
                 }
             }
         }
+    }
+
+    private boolean shouldEnqueueLocally(ScheduledJob job) {
+        return isReplicated() || ownsJob(job);
     }
 
     public void promoteSuccessors(ScheduledJob completedJob) {
@@ -171,6 +181,13 @@ public class JobStoreService {
         int shardIndex = instanceRegistry.getShardIndex();
         int shardCount = instanceRegistry.getShardCount();
         LOG.infof("Loading pending jobs for shard %d/%d", shardIndex, shardCount);
+        return List.of();
+    }
+
+    public List<ScheduledJob> loadAllPendingJobs() {
+        // TODO: Query all PENDING jobs (for replicated mode)
+        // SQL: SELECT * FROM scheduled_jobs WHERE state = 'PENDING'
+        LOG.infof("Loading all pending jobs (replicated mode)");
         return List.of();
     }
 

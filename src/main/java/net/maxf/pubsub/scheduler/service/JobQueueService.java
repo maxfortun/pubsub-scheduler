@@ -31,28 +31,40 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     @ConfigProperty(name = "scheduler.catchup.enabled", defaultValue = "true")
     boolean catchUpEnabled;
 
+    @ConfigProperty(name = "scheduler.mode", defaultValue = "sharded")
+    String schedulerMode;
+
     @Inject
     AdvisoryService advisoryService;
 
     @Inject
     InstanceRegistryService instanceRegistry;
 
+    private boolean isReplicated() {
+        return "replicated".equalsIgnoreCase(schedulerMode);
+    }
+
     void onStart(@Observes StartupEvent ev) {
         instanceRegistry.setShardChangeListener(this);
         Thread.ofVirtual().name("job-fire-loop").start(this::fireLoop);
         LOG.info("Job fire loop started on virtual thread");
 
-        // Load jobs for our shard after instance registry is ready
-        Thread.ofVirtual().name("job-loader").start(this::loadJobsForShard);
+        // Load jobs after instance registry is ready
+        Thread.ofVirtual().name("job-loader").start(this::loadJobsOnStartup);
     }
 
     @Override
     public void onShardChanged(int oldShard, int newShard, int shardCount) {
+        if (isReplicated()) {
+            // In replicated mode, shard changes don't affect job loading
+            LOG.debugf("Shard changed but running in replicated mode, no reload needed");
+            return;
+        }
         LOG.infof("Shard changed from %d to %d (of %d), reloading jobs", oldShard, newShard, shardCount);
-        reloadJobsForShard();
+        reloadJobs();
     }
 
-    private void loadJobsForShard() {
+    private void loadJobsOnStartup() {
         // Small delay to ensure instance registry has computed initial shard
         try {
             Thread.sleep(1000);
@@ -60,26 +72,35 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             Thread.currentThread().interrupt();
             return;
         }
-        reloadJobsForShard();
+        reloadJobs();
     }
 
-    private void reloadJobsForShard() {
-        // Clear current queue - jobs we no longer own will be picked up by new owner
+    private void reloadJobs() {
+        // Clear current queue
         delayQueue.clear();
         enqueuedJobIds.clear();
 
-        // Load jobs we now own
-        List<ScheduledJob> jobs = jobStore.loadPendingJobsForCurrentShard();
+        // Load jobs based on mode
+        List<ScheduledJob> jobs = isReplicated()
+            ? jobStore.loadAllPendingJobs()
+            : jobStore.loadPendingJobsForCurrentShard();
+
         for (ScheduledJob job : jobs) {
             enqueue(job);
         }
-        LOG.infof("Loaded %d jobs for shard %d/%d",
-            jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
+
+        if (isReplicated()) {
+            LOG.infof("Loaded %d jobs (replicated mode)", jobs.size());
+        } else {
+            LOG.infof("Loaded %d jobs for shard %d/%d",
+                jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
+        }
     }
 
     @Scheduled(every = "${scheduler.catchup.interval:60s}")
     void catchUpScan() {
-        if (!catchUpEnabled) {
+        // Catch-up not needed in replicated mode (all jobs already enqueued locally)
+        if (!catchUpEnabled || isReplicated()) {
             return;
         }
 
