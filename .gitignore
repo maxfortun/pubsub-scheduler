@@ -42,6 +42,7 @@ logs/
 application-local.properties
 application-*.properties
 !application.properties
+!**/examples/application-*.properties
 secrets/
 *.key
 *.p12
