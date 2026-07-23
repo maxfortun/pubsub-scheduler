@@ -324,6 +324,8 @@ docker-compose down -v
 | `SCHEDULER_ADVISORY` | Advisory endpoint | `kafka:scheduler.advisory` |
 | `SCHEDULER_DLQ` | Dead letter queue endpoint | `kafka:scheduler.dlq` |
 | `SCHEDULER_DEFAULT_RETRY_COUNT` | Default retry count | `3` |
+| `SCHEDULER_SHARD_INDEX` | This instance's shard (0-based) | `0` |
+| `SCHEDULER_SHARD_COUNT` | Total number of shards | `1` |
 
 ### Image Details
 
@@ -331,6 +333,56 @@ docker-compose down -v
 - **Final image size:** ~150MB
 - **Exposed port:** 8080
 - **Health endpoint:** `/q/health`
+
+## Scaling and Load Balancing
+
+PubSub Scheduler uses **key-based sharding** for horizontal scaling. Each instance owns a subset of jobs based on a hash of the job key (or job ID for keyless jobs):
+
+```
+shard = hash(job_key ?? job_id) % shard_count
+```
+
+**Why key-based?**
+- Jobs with the same key always land on the same instance — QUEUE ordering works without coordination
+- Keyless jobs distribute evenly across all instances
+- No external coordination service needed — each instance independently computes ownership
+- Scaling up/down just redistributes keys (optimistic locking prevents double-fire during transitions)
+
+**Example:** With 3 instances and a job keyed `order-123`:
+```
+hash("order-123") % 3 = 1  →  handled by pubsub-scheduler-1
+```
+
+### Kubernetes Deployment
+
+The `k8s/` folder contains production-ready manifests using a StatefulSet:
+
+```bash
+# Deploy with kustomize
+kubectl apply -k k8s/
+
+# Scale to 6 shards
+kubectl patch statefulset pubsub-scheduler -n pubsub-scheduler \
+  --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value": 6}]'
+
+# Also update SCHEDULER_SHARD_COUNT in configmap to match
+```
+
+**What's included:**
+- `namespace.yaml` — dedicated namespace
+- `configmap.yaml` — non-sensitive config (Kafka brokers, topics)
+- `secret.yaml` — database credentials (customize for your cluster)
+- `statefulset.yaml` — scheduler pods with automatic shard assignment
+- `pdb.yaml` — pod disruption budget (min 2 available)
+- `hpa.yaml` — horizontal pod autoscaler (3-12 replicas)
+- `kustomization.yaml` — kustomize entrypoint
+
+**Shard assignment:** Each pod extracts its ordinal from the hostname (`pubsub-scheduler-0` → shard 0) via an init container. No manual configuration needed.
+
+**Scaling considerations:**
+- Scale up: new shards start empty, load jobs from DB for their keys
+- Scale down: removed shards' jobs get picked up by remaining instances on next DB scan
+- Hot keys: one key with millions of jobs still bottlenecks on one instance (but those jobs are sequential anyway)
 
 ## Architecture
 

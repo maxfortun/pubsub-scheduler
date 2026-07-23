@@ -29,8 +29,14 @@ public class JobStoreService {
     @Inject
     JobQueueService jobQueue;
 
-    @ConfigProperty(name = "scheduler.instance-id", defaultValue = "scheduler-1")
+    @ConfigProperty(name = "scheduler.instance-id", defaultValue = "scheduler-0")
     String instanceId;
+
+    @ConfigProperty(name = "scheduler.shard.index", defaultValue = "0")
+    int shardIndex;
+
+    @ConfigProperty(name = "scheduler.shard.count", defaultValue = "1")
+    int shardCount;
 
     public void save(ScheduledJob job) {
         // TODO: Implement JDBC insert
@@ -65,12 +71,16 @@ public class JobStoreService {
     }
 
     public void handleIncomingJob(ScheduledJob job) {
+        // Always save the job - it's persisted regardless of shard ownership
         if (job.getJobKey() == null) {
             // No key - schedule immediately
             job.setState(JobState.PENDING);
             save(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-            jobQueue.enqueue(job);
+            // Only enqueue locally if we own this shard
+            if (ownsJob(job)) {
+                jobQueue.enqueue(job);
+            }
             return;
         }
 
@@ -86,27 +96,35 @@ public class JobStoreService {
                 job.setState(JobState.PENDING);
                 save(job);
                 advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                jobQueue.enqueue(job);
+                if (ownsJob(job)) {
+                    jobQueue.enqueue(job);
+                }
             }
             case REPLACE -> {
                 for (ScheduledJob existing : existingJobs) {
                     existing.setState(JobState.FAILED);
                     existing.setLastError("Replaced by job " + job.getId());
                     update(existing);
-                    jobQueue.remove(existing.getId());
+                    if (ownsJob(existing)) {
+                        jobQueue.remove(existing.getId());
+                    }
                     advisoryService.publish(existing, AdvisoryEvent.JOB_REPLACED);
                 }
                 job.setState(JobState.PENDING);
                 save(job);
                 advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                jobQueue.enqueue(job);
+                if (ownsJob(job)) {
+                    jobQueue.enqueue(job);
+                }
             }
             case QUEUE -> {
                 if (existingJobs.isEmpty()) {
                     job.setState(JobState.PENDING);
                     save(job);
                     advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-                    jobQueue.enqueue(job);
+                    if (ownsJob(job)) {
+                        jobQueue.enqueue(job);
+                    }
                 } else {
                     // Find the last job in queue
                     ScheduledJob predecessor = existingJobs.getLast();
@@ -131,7 +149,7 @@ public class JobStoreService {
         //   - Calculate effective fire time
         //   - Set state = PENDING
         //   - Update in DB
-        //   - Enqueue
+        //   - Enqueue only if we own the shard (ownsJob(successor))
         //   - Publish JOB_PROMOTED advisory
     }
 
@@ -151,8 +169,22 @@ public class JobStoreService {
     }
 
     public List<ScheduledJob> loadPendingJobsOnStartup() {
-        // TODO: Query all PENDING jobs for recovery
+        // TODO: Query PENDING jobs for this shard only
+        // SQL: SELECT * FROM scheduled_jobs
+        //      WHERE state = 'PENDING'
+        //        AND mod(abs(hashtext(COALESCE(job_key, id::text))), :shardCount) = :shardIndex
+        LOG.infof("Loading pending jobs for shard %d/%d", shardIndex, shardCount);
         return List.of();
+    }
+
+    public boolean ownsJob(ScheduledJob job) {
+        String shardKey = job.getJobKey() != null ? job.getJobKey() : job.getId().toString();
+        int hash = Math.abs(shardKey.hashCode());
+        return hash % shardCount == shardIndex;
+    }
+
+    public int getShardForKey(String key) {
+        return Math.abs(key.hashCode()) % shardCount;
     }
 
     public List<ScheduledJob> findJobs(JobState state, String jobKey, int limit) {

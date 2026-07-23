@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pubsub-scheduler-config
+  namespace: pubsub-scheduler
+  labels:
+    app.kubernetes.io/name: pubsub-scheduler
+data:
+  # Quarkus profile
+  QUARKUS_PROFILE: "kafka"
+
+  # Camel/Kafka
+  CAMEL_COMPONENT_KAFKA_BROKERS: "kafka.kafka.svc.cluster.local:9092"
+
+  # Topics
+  SCHEDULER_IN: "kafka:scheduler.in"
+  SCHEDULER_ADVISORY: "kafka:scheduler.advisory"
+  SCHEDULER_DLQ: "kafka:scheduler.dlq"
+  SCHEDULER_ADVISORY_DLQ: "kafka:scheduler.advisory.dlq"
+
+  # Scheduler defaults
+  SCHEDULER_DEFAULT_RETRIES: "3"
