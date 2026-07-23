@@ -49,9 +49,6 @@ secrets/
 *.keystore
 *.truststore
 
-# Certificates
-cacerts
-
 # Database
 *.db
 *.sqlite
