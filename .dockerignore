@@ -1,0 +1,41 @@
+# Build artifacts
+build/
+target/
+out/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Gradle
+.gradle/
+
+# Quarkus
+.quarkus/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Docs
+*.md
+LICENSE
+
+# Environment
+.env*

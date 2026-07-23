@@ -4,12 +4,33 @@ A distributed, pub/sub-agnostic message scheduler. Publish messages with schedul
 
 ## Quick Start
 
+### Docker (recommended)
+
+```bash
+# Start everything: CockroachDB, Kafka, and Scheduler
+docker-compose up -d
+
+# Run integration tests
+docker-compose up test
+
+# View logs
+docker-compose logs -f scheduler
+
+# Stop
+docker-compose down
+```
+
+### Local Development
+
 ```bash
 # Build
 ./gradlew build
 
-# Run (requires Kafka and PostgreSQL)
-./gradlew quarkusDev
+# Run with Kafka profile (requires Kafka and PostgreSQL/CockroachDB)
+./gradlew quarkusDev -Dquarkus.profile=kafka
+
+# Run with ActiveMQ profile
+./gradlew quarkusDev -Dquarkus.profile=activemq
 ```
 
 ## Usage
