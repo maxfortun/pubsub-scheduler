@@ -90,6 +90,20 @@ services:
           CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_acquired
               ON scheduled_jobs (acquired_by, acquired_at)
               WHERE state = 'ACQUIRED' OR state = 'FIRING';
+
+          -- Scheduler instances for heartbeat-based shard discovery
+          CREATE TABLE IF NOT EXISTS scheduler_instances (
+              instance_id TEXT PRIMARY KEY,
+              heartbeat_at TIMESTAMPTZ NOT NULL,
+              started_at TIMESTAMPTZ NOT NULL,
+              version INT NOT NULL DEFAULT 0
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_scheduler_instances_heartbeat
+              ON scheduler_instances (heartbeat_at);
+
+          CREATE INDEX IF NOT EXISTS idx_scheduler_instances_order
+              ON scheduler_instances (started_at, instance_id);
         "
 
   # Kafka (using KRaft mode, no ZooKeeper)

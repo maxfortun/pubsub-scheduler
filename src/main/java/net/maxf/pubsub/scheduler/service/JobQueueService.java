@@ -1,18 +1,20 @@
 package net.maxf.pubsub.scheduler.service;
 
+import io.quarkus.runtime.StartupEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.DelayQueue;
 
 @ApplicationScoped
-public class JobQueueService {
+public class JobQueueService implements InstanceRegistryService.ShardChangeListener {
 
     private static final Logger LOG = Logger.getLogger(JobQueueService.class);
 
@@ -24,10 +26,46 @@ public class JobQueueService {
     @Inject
     AdvisoryService advisoryService;
 
-    @PostConstruct
-    void init() {
+    @Inject
+    InstanceRegistryService instanceRegistry;
+
+    void onStart(@Observes StartupEvent ev) {
+        instanceRegistry.setShardChangeListener(this);
         Thread.ofVirtual().name("job-fire-loop").start(this::fireLoop);
         LOG.info("Job fire loop started on virtual thread");
+
+        // Load jobs for our shard after instance registry is ready
+        Thread.ofVirtual().name("job-loader").start(this::loadJobsForShard);
+    }
+
+    @Override
+    public void onShardChanged(int oldShard, int newShard, int shardCount) {
+        LOG.infof("Shard changed from %d to %d (of %d), reloading jobs", oldShard, newShard, shardCount);
+        reloadJobsForShard();
+    }
+
+    private void loadJobsForShard() {
+        // Small delay to ensure instance registry has computed initial shard
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        reloadJobsForShard();
+    }
+
+    private void reloadJobsForShard() {
+        // Clear current queue - jobs we no longer own will be picked up by new owner
+        delayQueue.clear();
+
+        // Load jobs we now own
+        List<ScheduledJob> jobs = jobStore.loadPendingJobsForCurrentShard();
+        for (ScheduledJob job : jobs) {
+            enqueue(job);
+        }
+        LOG.infof("Loaded %d jobs for shard %d/%d",
+            jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
     }
 
     public void enqueue(ScheduledJob job) {

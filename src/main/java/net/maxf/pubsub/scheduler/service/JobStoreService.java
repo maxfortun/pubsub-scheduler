@@ -29,14 +29,8 @@ public class JobStoreService {
     @Inject
     JobQueueService jobQueue;
 
-    @ConfigProperty(name = "scheduler.instance-id", defaultValue = "scheduler-0")
-    String instanceId;
-
-    @ConfigProperty(name = "scheduler.shard.index", defaultValue = "0")
-    int shardIndex;
-
-    @ConfigProperty(name = "scheduler.shard.count", defaultValue = "1")
-    int shardCount;
+    @Inject
+    InstanceRegistryService instanceRegistry;
 
     public void save(ScheduledJob job) {
         // TODO: Implement JDBC insert
@@ -65,7 +59,7 @@ public class JobStoreService {
         // Set state = ACQUIRED, acquired_by = instanceId, acquired_at = now
         // TODO: Implement
         job.setState(JobState.ACQUIRED);
-        job.setAcquiredBy(instanceId);
+        job.setAcquiredBy(instanceRegistry.getInstanceId());
         job.setAcquiredAt(Instant.now());
         return true;
     }
@@ -168,23 +162,20 @@ public class JobStoreService {
                 failedJob.getId(), failedJob.getJobKey());
     }
 
-    public List<ScheduledJob> loadPendingJobsOnStartup() {
+    public List<ScheduledJob> loadPendingJobsForCurrentShard() {
         // TODO: Query PENDING jobs for this shard only
         // SQL: SELECT * FROM scheduled_jobs
         //      WHERE state = 'PENDING'
         //        AND mod(abs(hashtext(COALESCE(job_key, id::text))), :shardCount) = :shardIndex
+        int shardIndex = instanceRegistry.getShardIndex();
+        int shardCount = instanceRegistry.getShardCount();
         LOG.infof("Loading pending jobs for shard %d/%d", shardIndex, shardCount);
         return List.of();
     }
 
     public boolean ownsJob(ScheduledJob job) {
         String shardKey = job.getJobKey() != null ? job.getJobKey() : job.getId().toString();
-        int hash = Math.abs(shardKey.hashCode());
-        return hash % shardCount == shardIndex;
-    }
-
-    public int getShardForKey(String key) {
-        return Math.abs(key.hashCode()) % shardCount;
+        return instanceRegistry.ownsKey(shardKey);
     }
 
     public List<ScheduledJob> findJobs(JobState state, String jobKey, int limit) {

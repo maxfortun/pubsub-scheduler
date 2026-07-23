@@ -324,8 +324,8 @@ docker-compose down -v
 | `SCHEDULER_ADVISORY` | Advisory endpoint | `kafka:scheduler.advisory` |
 | `SCHEDULER_DLQ` | Dead letter queue endpoint | `kafka:scheduler.dlq` |
 | `SCHEDULER_DEFAULT_RETRY_COUNT` | Default retry count | `3` |
-| `SCHEDULER_SHARD_INDEX` | This instance's shard (0-based) | `0` |
-| `SCHEDULER_SHARD_COUNT` | Total number of shards | `1` |
+| `SCHEDULER_HEARTBEAT_INTERVAL` | Heartbeat interval in seconds | `30` |
+| `SCHEDULER_HEARTBEAT_STALE` | Seconds before instance considered dead | `120` |
 
 ### Image Details
 
@@ -336,53 +336,84 @@ docker-compose down -v
 
 ## Scaling and Load Balancing
 
-PubSub Scheduler uses **key-based sharding** for horizontal scaling. Each instance owns a subset of jobs based on a hash of the job key (or job ID for keyless jobs):
+PubSub Scheduler uses **dynamic key-based sharding** for horizontal scaling. Instances discover each other via heartbeats to a shared database table — no manual shard configuration required.
+
+### How It Works
+
+1. **Heartbeat registration** — each instance writes to `scheduler_instances` every 30 seconds
+2. **Live instance discovery** — instances with heartbeat > 2 minutes ago are considered dead
+3. **Deterministic shard assignment** — live instances are ranked by `(started_at, instance_id)`; position in list = shard index
+4. **Key-based ownership** — `hash(job_key ?? job_id) % live_instance_count` determines owner
 
 ```
-shard = hash(job_key ?? job_id) % shard_count
+shard = hash(job_key ?? job_id) % live_instance_count
 ```
 
-**Why key-based?**
-- Jobs with the same key always land on the same instance — QUEUE ordering works without coordination
-- Keyless jobs distribute evenly across all instances
-- No external coordination service needed — each instance independently computes ownership
-- Scaling up/down just redistributes keys (optimistic locking prevents double-fire during transitions)
+**Why this design?**
+- **No coordination service** — uses the database you already have
+- **Works everywhere** — Docker, K8s, bare metal, mixed deployments
+- **Self-healing** — dead instances automatically excluded after 2 minutes
+- **Dynamic scaling** — add/remove instances anytime, shards rebalance automatically
+- **Key affinity preserved** — jobs with the same key always land on the same instance
 
-**Example:** With 3 instances and a job keyed `order-123`:
+**Example:** With 3 live instances and a job keyed `order-123`:
 ```
-hash("order-123") % 3 = 1  →  handled by pubsub-scheduler-1
+hash("order-123") % 3 = 1  →  handled by instance ranked #1
+```
+
+### Instance API
+
+```bash
+# List all live instances and their shards
+curl http://localhost:8080/api/instances
+
+# Get this instance's shard info
+curl http://localhost:8080/api/instances/self
+
+# Find which instance owns a specific key
+curl http://localhost:8080/api/instances/shard?key=order-123
 ```
 
 ### Kubernetes Deployment
 
-The `k8s/` folder contains production-ready manifests using a StatefulSet:
+The `k8s/` folder contains production-ready manifests:
 
 ```bash
 # Deploy with kustomize
 kubectl apply -k k8s/
 
-# Scale to 6 shards
-kubectl patch statefulset pubsub-scheduler -n pubsub-scheduler \
-  --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value": 6}]'
+# Scale up — new instances register automatically
+kubectl scale statefulset pubsub-scheduler -n pubsub-scheduler --replicas=6
 
-# Also update SCHEDULER_SHARD_COUNT in configmap to match
+# Scale down — removed instances expire after 2 minutes
+kubectl scale statefulset pubsub-scheduler -n pubsub-scheduler --replicas=3
 ```
 
 **What's included:**
 - `namespace.yaml` — dedicated namespace
 - `configmap.yaml` — non-sensitive config (Kafka brokers, topics)
 - `secret.yaml` — database credentials (customize for your cluster)
-- `statefulset.yaml` — scheduler pods with automatic shard assignment
+- `statefulset.yaml` — scheduler pods (no shard config needed)
 - `pdb.yaml` — pod disruption budget (min 2 available)
 - `hpa.yaml` — horizontal pod autoscaler (3-12 replicas)
 - `kustomization.yaml` — kustomize entrypoint
 
-**Shard assignment:** Each pod extracts its ordinal from the hostname (`pubsub-scheduler-0` → shard 0) via an init container. No manual configuration needed.
+### Docker Compose Scaling
 
-**Scaling considerations:**
-- Scale up: new shards start empty, load jobs from DB for their keys
-- Scale down: removed shards' jobs get picked up by remaining instances on next DB scan
-- Hot keys: one key with millions of jobs still bottlenecks on one instance (but those jobs are sequential anyway)
+```bash
+# Scale to 4 instances
+docker-compose up -d --scale app=4
+
+# Instances auto-register and rebalance shards
+```
+
+### Scaling Considerations
+
+- **Scale up:** new instance registers, gets shard assignment on first heartbeat, loads its jobs from DB
+- **Scale down:** removed instance's heartbeat expires after 2 min, remaining instances absorb its shards
+- **Graceful shutdown:** instance deregisters immediately, instant rebalance
+- **Crash:** instance heartbeat expires after 2 min, then rebalance
+- **Hot keys:** one key with millions of jobs still bottlenecks on one instance (but those jobs are sequential anyway)
 
 ## Architecture
 
