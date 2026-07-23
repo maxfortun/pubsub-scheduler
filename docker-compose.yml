@@ -176,13 +176,13 @@ services:
         # Test 1: Immediate job
         echo ""
         echo "Test 1: Immediate job (no delay)"
-        echo 'SCHEDULER_DESTINATION:test.destination	{"test": "immediate"}' | /opt/kafka/bin/kafka-console-producer.sh \
+        printf '%s\n' 'SCHEDULER_DESTINATION:test.destination|{"test": "immediate"}' | /opt/kafka/bin/kafka-console-producer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
-          --property "parse.headers=true" \
-          --property "headers.delimiter=\t" \
-          --property "headers.separator=," \
-          --property "headers.key.separator=:"
+          --property parse.headers=true \
+          --property headers.delimiter="|" \
+          --property headers.separator="," \
+          --property headers.key.separator=":"
 
         sleep 2
 
@@ -197,13 +197,13 @@ services:
         # Test 2: Delayed job (5 seconds)
         echo ""
         echo "Test 2: Delayed job (5 seconds)"
-        echo 'SCHEDULER_DESTINATION:test.destination,SCHEDULER_SLEEP:PT5S	{"test": "delayed"}' | /opt/kafka/bin/kafka-console-producer.sh \
+        printf '%s\n' 'SCHEDULER_DESTINATION:test.destination,SCHEDULER_SLEEP:PT5S|{"test": "delayed"}' | /opt/kafka/bin/kafka-console-producer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
-          --property "parse.headers=true" \
-          --property "headers.delimiter=\t" \
-          --property "headers.separator=," \
-          --property "headers.key.separator=:"
+          --property parse.headers=true \
+          --property headers.delimiter="|" \
+          --property headers.separator="," \
+          --property headers.key.separator=":"
 
         echo "Waiting 7 seconds for delayed job..."
         sleep 7
