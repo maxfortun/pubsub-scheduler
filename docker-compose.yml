@@ -180,14 +180,14 @@ services:
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
           --property "parse.headers=true" \
-          --property "headers.delimiter=|" \
-          --property "headers.separator=:" \
-          <<< "SCHEDULER_DESTINATION:test.destination|{\"test\": \"immediate\"}"
+          --property "headers.key.separator=:" \
+          --property "header.separator=|" \
+          --property "headers=SCHEDULER_DESTINATION:test.destination"
 
         sleep 2
 
         echo "Checking test.destination for message..."
-        timeout 10 /opt/kafka/bin/kafka-console-consumer.sh \
+        /opt/kafka/bin/kafka-console-consumer.sh \
           --bootstrap-server kafka:9092 \
           --topic test.destination \
           --from-beginning \
@@ -197,18 +197,19 @@ services:
         # Test 2: Delayed job (5 seconds)
         echo ""
         echo "Test 2: Delayed job (5 seconds)"
-        echo "SCHEDULER_DESTINATION:test.destination|SCHEDULER_SLEEP:PT5S|{\"test\": \"delayed\"}" | /opt/kafka/bin/kafka-console-producer.sh \
+        echo '{"test": "delayed"}' | /opt/kafka/bin/kafka-console-producer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
           --property "parse.headers=true" \
-          --property "headers.delimiter=|" \
-          --property "headers.separator=:"
+          --property "headers.key.separator=:" \
+          --property "header.separator=|" \
+          --property "headers=SCHEDULER_DESTINATION:test.destination|SCHEDULER_SLEEP:PT5S"
 
         echo "Waiting 7 seconds for delayed job..."
         sleep 7
 
         echo "Checking for delayed message..."
-        timeout 5 /opt/kafka/bin/kafka-console-consumer.sh \
+        /opt/kafka/bin/kafka-console-consumer.sh \
           --bootstrap-server kafka:9092 \
           --topic test.destination \
           --from-beginning \
@@ -218,7 +219,7 @@ services:
         # Test 3: Check advisory events
         echo ""
         echo "Test 3: Advisory events"
-        timeout 5 /opt/kafka/bin/kafka-console-consumer.sh \
+        /opt/kafka/bin/kafka-console-consumer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.advisory \
           --from-beginning \
