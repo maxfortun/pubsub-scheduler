@@ -13,6 +13,7 @@ import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -176,6 +177,20 @@ public class JobStoreService {
     public boolean ownsJob(ScheduledJob job) {
         String shardKey = job.getJobKey() != null ? job.getJobKey() : job.getId().toString();
         return instanceRegistry.ownsKey(shardKey);
+    }
+
+    public List<ScheduledJob> findPendingJobsForShardNotInQueue(Set<UUID> enqueuedIds) {
+        // Query PENDING jobs for this shard that aren't already enqueued
+        // SQL: SELECT * FROM scheduled_jobs
+        //      WHERE state = 'PENDING'
+        //        AND mod(abs(hashtext(COALESCE(job_key, id::text))), :shardCount) = :shardIndex
+        //        AND id NOT IN (:enqueuedIds)
+        // TODO: Implement JDBC query
+        int shardIndex = instanceRegistry.getShardIndex();
+        int shardCount = instanceRegistry.getShardCount();
+        LOG.debugf("Catch-up scan for shard %d/%d, excluding %d enqueued jobs",
+            shardIndex, shardCount, enqueuedIds.size());
+        return List.of();
     }
 
     public List<ScheduledJob> findJobs(JobState state, String jobKey, int limit) {

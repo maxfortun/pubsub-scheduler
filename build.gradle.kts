@@ -17,6 +17,7 @@ dependencies {
 
     // Quarkus core
     implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-scheduler")
 
     // Camel core
     implementation("org.apache.camel.quarkus:camel-quarkus-core")

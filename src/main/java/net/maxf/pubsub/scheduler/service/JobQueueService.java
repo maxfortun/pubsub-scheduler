@@ -1,16 +1,20 @@
 package net.maxf.pubsub.scheduler.service;
 
 import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
 
 @ApplicationScoped
@@ -19,9 +23,13 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     private static final Logger LOG = Logger.getLogger(JobQueueService.class);
 
     private final DelayQueue<ScheduledJob> delayQueue = new DelayQueue<>();
+    private final Set<UUID> enqueuedJobIds = ConcurrentHashMap.newKeySet();
 
     @Inject
     JobStoreService jobStore;
+
+    @ConfigProperty(name = "scheduler.catchup.enabled", defaultValue = "true")
+    boolean catchUpEnabled;
 
     @Inject
     AdvisoryService advisoryService;
@@ -58,6 +66,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     private void reloadJobsForShard() {
         // Clear current queue - jobs we no longer own will be picked up by new owner
         delayQueue.clear();
+        enqueuedJobIds.clear();
 
         // Load jobs we now own
         List<ScheduledJob> jobs = jobStore.loadPendingJobsForCurrentShard();
@@ -68,12 +77,30 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
     }
 
+    @Scheduled(every = "${scheduler.catchup.interval:60s}")
+    void catchUpScan() {
+        if (!catchUpEnabled) {
+            return;
+        }
+
+        List<ScheduledJob> missing = jobStore.findPendingJobsForShardNotInQueue(enqueuedJobIds);
+        if (!missing.isEmpty()) {
+            LOG.infof("Catch-up scan found %d missing jobs", missing.size());
+            for (ScheduledJob job : missing) {
+                enqueue(job);
+            }
+        }
+    }
+
     public void enqueue(ScheduledJob job) {
-        delayQueue.put(job);
-        LOG.debugf("Job %s enqueued, fire at %s", job.getId(), job.getEffectiveFireAt());
+        if (enqueuedJobIds.add(job.getId())) {
+            delayQueue.put(job);
+            LOG.debugf("Job %s enqueued, fire at %s", job.getId(), job.getEffectiveFireAt());
+        }
     }
 
     public boolean remove(UUID jobId) {
+        enqueuedJobIds.remove(jobId);
         return delayQueue.removeIf(job -> job.getId().equals(jobId));
     }
 
@@ -92,6 +119,9 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     private void fireJob(ScheduledJob job) {
         try {
+            // Remove from tracking before firing
+            enqueuedJobIds.remove(job.getId());
+
             if (!jobStore.acquire(job)) {
                 LOG.debugf("Job %s already acquired by another instance", job.getId());
                 return;
