@@ -49,10 +49,7 @@ secrets/
 *.keystore
 *.truststore
 
-# Certificates (keep README, ignore actual certs)
-certs/*.crt
-certs/*.pem
-certs/*.cer
+# Certificates
 cacerts
 
 # Database
