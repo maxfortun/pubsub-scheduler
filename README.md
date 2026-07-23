@@ -203,7 +203,8 @@ Published to `scheduler.advisory` (metadata only, no payload):
 | `JOB_REPLACED` | Cancelled by incoming REPLACE |
 | `JOB_PROMOTED` | WAITING -> PENDING (predecessor done) |
 | `JOB_FIRING` | About to publish to destination |
-| `JOB_COMPLETE` | Successfully published |
+| `JOB_COMPLETE` | Successfully published (one execution) |
+| `JOB_EXPIRED` | Recurring job ended (CRON_END/CRON_COUNT/SLEEP_REPEAT limit reached) |
 | `JOB_FAILED` | Failed after retries |
 | `JOB_CASCADE_FAILED` | Failed due to predecessor failure |
 
