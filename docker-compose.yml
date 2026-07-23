@@ -155,7 +155,7 @@ services:
       kafka-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/q/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -228,7 +228,7 @@ services:
         # Test 4: Health check
         echo ""
         echo "Test 4: Health endpoint"
-        curl -sf http://scheduler:8080/q/health && echo "" && echo "PASS: Health check OK" || echo "FAIL: Health check failed"
+        wget -q -O - http://scheduler:8080/q/health && echo "" && echo "PASS: Health check OK" || echo "FAIL: Health check failed"
 
         echo ""
         echo "=========================================="
