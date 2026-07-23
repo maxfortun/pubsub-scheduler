@@ -156,6 +156,20 @@ SCHEDULER_SLEEP_REPEAT: 10
 | `SKIP` | Missed executions are ignored, resume at next scheduled time |
 | `CATCH_UP` | Run immediately on recovery, then resume schedule |
 
+**Example: Daily job ending on a specific date**
+```
+SCHEDULER_DESTINATION: reports.daily
+SCHEDULER_CRON: 0 9 * * *
+SCHEDULER_CRON_END: 2026-12-31T23:59:59Z
+```
+
+**Example: Daily job limited to 30 executions**
+```
+SCHEDULER_DESTINATION: trial.reminder
+SCHEDULER_CRON: 0 9 * * *
+SCHEDULER_CRON_COUNT: 30
+```
+
 ### Retry & Error Handling
 
 | Header | Description | Example |
