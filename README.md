@@ -395,6 +395,93 @@ The catch-up scan queries the database for PENDING jobs that belong to this shar
 
 In replicated mode, catch-up is automatically disabled (not needed).
 
+### Secrets Management
+
+PubSub Scheduler supports multiple secret providers for secure credential management. Example configurations are in `src/main/resources/examples/`.
+
+#### AWS Secrets Manager
+
+```properties
+# Reference: ${sm:secret-name#json-key}
+quarkus.secretsmanager.aws.region=us-east-1
+quarkus.datasource.username=${sm:scheduler/db#username}
+quarkus.datasource.password=${sm:scheduler/db#password}
+```
+
+Create your secret:
+```bash
+aws secretsmanager create-secret \
+  --name scheduler/db \
+  --secret-string '{"username":"scheduler","password":"secret123"}'
+```
+
+#### AWS Parameter Store
+
+```properties
+# Reference: ${ssm:/parameter/path}
+quarkus.ssm.aws.region=us-east-1
+quarkus.datasource.username=${ssm:/scheduler/db/username}
+quarkus.datasource.password=${ssm:/scheduler/db/password}
+```
+
+Create your parameters:
+```bash
+aws ssm put-parameter --name /scheduler/db/username --value scheduler --type String
+aws ssm put-parameter --name /scheduler/db/password --value secret123 --type SecureString
+```
+
+#### HashiCorp Vault
+
+```properties
+# Reference: ${vault:path#key}
+quarkus.vault.url=https://vault.example.com
+quarkus.vault.authentication.kubernetes.role=scheduler
+
+quarkus.datasource.username=${vault:secret/data/scheduler/db#username}
+quarkus.datasource.password=${vault:secret/data/scheduler/db#password}
+```
+
+Store your secret:
+```bash
+vault kv put secret/scheduler/db username=scheduler password=secret123
+```
+
+#### Kubernetes Secrets (Mounted Files)
+
+```yaml
+# deployment.yaml
+volumes:
+  - name: db-credentials
+    secret:
+      secretName: scheduler-db-credentials
+volumeMounts:
+  - name: db-credentials
+    mountPath: /var/run/secrets/db
+    readOnly: true
+```
+
+```properties
+# Reference: ${file:/path/to/secret}
+quarkus.datasource.username=${file:/var/run/secrets/db/username}
+quarkus.datasource.password=${file:/var/run/secrets/db/password}
+```
+
+#### Environment Variables (K8s secretKeyRef)
+
+```yaml
+# deployment.yaml
+env:
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: scheduler-db-credentials
+        key: password
+```
+
+```properties
+quarkus.datasource.password=${DB_PASSWORD}
+```
+
 ### Image Details
 
 - **Base image:** `bellsoft/liberica-openjre-alpine:21` (~90MB)

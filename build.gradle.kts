@@ -34,6 +34,12 @@ dependencies {
     implementation("io.quarkus:quarkus-jdbc-postgresql")
     implementation("io.quarkus:quarkus-agroal")
 
+    // Secret providers (optional - include what you need)
+    implementation("io.quarkiverse.amazonservices:quarkus-amazon-secretsmanager:2.12.0")
+    implementation("io.quarkiverse.amazonservices:quarkus-amazon-ssm:2.12.0")
+    implementation("software.amazon.awssdk:url-connection-client")
+    implementation("io.quarkus:quarkus-vault")
+
     // REST API
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
