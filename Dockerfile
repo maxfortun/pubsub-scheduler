@@ -3,6 +3,21 @@ FROM gradle:8.14-jdk21-alpine AS builder
 
 WORKDIR /app
 
+# Install custom CA certificates (for corporate proxies like Zscaler)
+# Place .crt/.pem files in certs/ directory
+COPY certs/ /tmp/certs/
+RUN if ls /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer 2>/dev/null; then \
+      cp /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer /usr/local/share/ca-certificates/ 2>/dev/null || true; \
+      update-ca-certificates; \
+      # Also add to Java truststore
+      for cert in /tmp/certs/*.crt /tmp/certs/*.pem /tmp/certs/*.cer; do \
+        if [ -f "$cert" ]; then \
+          keytool -import -trustcacerts -cacerts -storepass changeit -noprompt \
+            -alias "$(basename $cert)" -file "$cert" 2>/dev/null || true; \
+        fi; \
+      done; \
+    fi
+
 # Copy gradle files first for dependency caching
 COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 

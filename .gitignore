@@ -43,12 +43,16 @@ application-local.properties
 application-*.properties
 !application.properties
 secrets/
-*.pem
 *.key
 *.p12
 *.jks
 *.keystore
 *.truststore
+
+# Certificates (keep README, ignore actual certs)
+certs/*.crt
+certs/*.pem
+certs/*.cer
 
 # Database
 *.db
