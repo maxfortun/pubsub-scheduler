@@ -53,6 +53,7 @@ secrets/
 certs/*.crt
 certs/*.pem
 certs/*.cer
+cacerts
 
 # Database
 *.db
