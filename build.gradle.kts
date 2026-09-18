@@ -37,8 +37,8 @@ dependencies {
     // Secret providers (optional - include what you need)
     implementation("io.quarkiverse.amazonservices:quarkus-amazon-secretsmanager:2.12.0")
     implementation("io.quarkiverse.amazonservices:quarkus-amazon-ssm:2.12.0")
-    implementation("software.amazon.awssdk:url-connection-client")
-    implementation("io.quarkus:quarkus-vault")
+    implementation("software.amazon.awssdk:url-connection-client:2.25.0")
+    implementation("io.quarkiverse.vault:quarkus-vault:4.0.0")
 
     // REST API
     implementation("io.quarkus:quarkus-rest")
@@ -50,8 +50,10 @@ dependencies {
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
+    testImplementation("io.quarkus:quarkus-junit5-mockito")
     testImplementation("org.apache.camel.quarkus:camel-quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
+    testImplementation("io.quarkus:quarkus-jdbc-h2")
 }
 
 group = "net.maxf"

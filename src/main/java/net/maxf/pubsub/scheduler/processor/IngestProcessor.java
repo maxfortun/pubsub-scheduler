@@ -73,15 +73,16 @@ public class IngestProcessor implements Processor {
             job.setFireAt(Instant.now().plus(sleep));
             job.setSleepDuration(sleepStr);
         } else if (cronStr != null) {
-            job.setCronExpression(cronStr);
-            job.setFireAt(calculateNextCronFire(cronStr));
-
-            // Cron end conditions (mutually exclusive)
+            // Cron end conditions (mutually exclusive) - validate first
             String cronEndStr = message.getHeader(HEADER_CRON_END, String.class);
             Integer cronCount = message.getHeader(HEADER_CRON_COUNT, Integer.class);
             if (cronEndStr != null && cronCount != null) {
                 throw new IllegalArgumentException("SCHEDULER_CRON_END and SCHEDULER_CRON_COUNT are mutually exclusive");
             }
+
+            job.setCronExpression(cronStr);
+            job.setFireAt(calculateNextCronFire(cronStr));
+
             if (cronEndStr != null) {
                 job.setCronEnd(Instant.parse(cronEndStr));
             }
