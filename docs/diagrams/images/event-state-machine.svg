@@ -52,7 +52,7 @@
 
   <!-- Success exits -->
   <rect x="180" y="480" width="130" height="50" rx="8" fill="#69db7c" stroke="#2f9e44" stroke-width="2"/>
-  <text x="245" y="510" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#2f9e44">JOB_COMPLETE</text>
+  <text x="245" y="510" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#2f9e44">JOB_DONE</text>
 
   <rect x="180" y="580" width="130" height="50" rx="8" fill="#d8f5a2" stroke="#5c940d" stroke-width="2"/>
   <text x="245" y="610" text-anchor="middle" font-family="monospace" font-size="12" font-weight="bold" fill="#5c940d">JOB_EXPIRED</text>

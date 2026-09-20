@@ -99,7 +99,7 @@ Published to `scheduler.advisory`, keyed by job key for partition affinity:
 | `JOB_CHAINED` | Linked behind predecessor (QUEUE policy) |
 | `JOB_PROMOTED` | Predecessor done, ready for delivery |
 | `JOB_RUNNING` | Delivering to destination |
-| `JOB_COMPLETE` | Delivered successfully |
+| `JOB_DONE` | Delivered successfully |
 | `JOB_EXPIRED` | Recurring job finished |
 | `JOB_SKIPPED` | Dropped (SKIP policy) |
 | `JOB_REPLACED` | Cancelled by incoming REPLACE |

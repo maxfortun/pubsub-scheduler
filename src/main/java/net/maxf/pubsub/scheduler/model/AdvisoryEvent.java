@@ -10,7 +10,7 @@ public enum AdvisoryEvent {
     JOB_RUNNING,        // Delivering to destination
 
     // Successful exits
-    JOB_COMPLETE,       // Delivered successfully
+    JOB_DONE,           // Delivered successfully
     JOB_EXPIRED,        // Recurring job finished
 
     // Cancelled exits

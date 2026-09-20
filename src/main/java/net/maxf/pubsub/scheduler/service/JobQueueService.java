@@ -174,7 +174,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             job.setState(JobState.COMPLETE);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, AdvisoryEvent.JOB_COMPLETE);
+            advisoryService.publish(job, AdvisoryEvent.JOB_DONE);
 
             jobStore.promoteSuccessors(job);
 
