@@ -5,14 +5,13 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import net.maxf.pubsub.scheduler.dao.DaoException;
+import net.maxf.pubsub.scheduler.dao.InstanceDao;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import javax.sql.DataSource;
-import java.sql.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -26,7 +25,7 @@ public class InstanceRegistryService {
     private static final Logger LOG = Logger.getLogger(InstanceRegistryService.class);
 
     @Inject
-    DataSource dataSource;
+    InstanceDao instanceDao;
 
     @ConfigProperty(name = "scheduler.instance-id", defaultValue = "${HOSTNAME:scheduler-0}")
     String instanceId;
@@ -64,7 +63,6 @@ public class InstanceRegistryService {
             TimeUnit.SECONDS
         );
 
-        // Initial shard computation
         heartbeatAndRecomputeShard();
 
         LOG.infof("Instance %s registered, shard %d/%d",
@@ -109,35 +107,17 @@ public class InstanceRegistryService {
     }
 
     private void register() {
-        String sql = """
-            INSERT INTO scheduler_instances (instance_id, heartbeat_at, started_at, version)
-            VALUES (?, ?, ?, 0)
-            ON CONFLICT (instance_id) DO UPDATE
-            SET heartbeat_at = EXCLUDED.heartbeat_at,
-                started_at = EXCLUDED.started_at,
-                version = scheduler_instances.version + 1
-            """;
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            Timestamp now = Timestamp.from(Instant.now());
-            ps.setString(1, instanceId);
-            ps.setTimestamp(2, now);
-            ps.setTimestamp(3, Timestamp.from(startedAt));
-            ps.executeUpdate();
-        } catch (SQLException e) {
+        try {
+            instanceDao.upsert(instanceId, Instant.now(), startedAt);
+        } catch (DaoException e) {
             LOG.errorf(e, "Failed to register instance %s", instanceId);
         }
     }
 
     private void deregister() {
-        String sql = "DELETE FROM scheduler_instances WHERE instance_id = ?";
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, instanceId);
-            ps.executeUpdate();
-        } catch (SQLException e) {
+        try {
+            instanceDao.delete(instanceId);
+        } catch (DaoException e) {
             LOG.warnf(e, "Failed to deregister instance %s", instanceId);
         }
     }
@@ -152,17 +132,12 @@ public class InstanceRegistryService {
     }
 
     private void updateHeartbeat() {
-        String sql = "UPDATE scheduler_instances SET heartbeat_at = ?, version = version + 1 WHERE instance_id = ?";
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setTimestamp(1, Timestamp.from(Instant.now()));
-            ps.setString(2, instanceId);
-            int updated = ps.executeUpdate();
+        try {
+            int updated = instanceDao.updateHeartbeat(instanceId, Instant.now());
             if (updated == 0) {
                 register();
             }
-        } catch (SQLException e) {
+        } catch (DaoException e) {
             LOG.errorf(e, "Failed to update heartbeat for instance %s", instanceId);
         }
     }
@@ -193,51 +168,28 @@ public class InstanceRegistryService {
     }
 
     public List<String> getLiveInstances() {
-        List<String> instances = new ArrayList<>();
-        String sql = """
-            SELECT instance_id FROM scheduler_instances
-            WHERE heartbeat_at > ?
-            ORDER BY started_at, instance_id
-            """;
-
         Instant threshold = Instant.now().minus(Duration.ofSeconds(staleThresholdSeconds));
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setTimestamp(1, Timestamp.from(threshold));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    instances.add(rs.getString("instance_id"));
-                }
-            }
-        } catch (SQLException e) {
+        try {
+            return instanceDao.findLiveInstances(threshold);
+        } catch (DaoException e) {
             LOG.errorf(e, "Failed to query live instances");
+            return List.of();
         }
-
-        return instances;
     }
 
     public Optional<InstanceInfo> getInstanceInfo(String id) {
-        String sql = "SELECT * FROM scheduler_instances WHERE instance_id = ?";
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(new InstanceInfo(
-                        rs.getString("instance_id"),
-                        rs.getTimestamp("heartbeat_at").toInstant(),
-                        rs.getTimestamp("started_at").toInstant(),
-                        rs.getInt("version")
-                    ));
-                }
-            }
-        } catch (SQLException e) {
+        try {
+            return instanceDao.findById(id)
+                .map(info -> new InstanceInfo(
+                    info.instanceId(),
+                    info.heartbeatAt(),
+                    info.startedAt(),
+                    info.version()
+                ));
+        } catch (DaoException e) {
             LOG.errorf(e, "Failed to get instance info for %s", id);
+            return Optional.empty();
         }
-
-        return Optional.empty();
     }
 
     public record InstanceInfo(String instanceId, Instant heartbeatAt, Instant startedAt, int version) {}

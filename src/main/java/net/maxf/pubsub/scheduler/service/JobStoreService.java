@@ -1,15 +1,17 @@
 package net.maxf.pubsub.scheduler.service;
 
+import net.maxf.pubsub.scheduler.dao.DaoException;
+import net.maxf.pubsub.scheduler.dao.JobDao;
 import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
-import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.model.SleepStart;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import javax.sql.DataSource;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +24,7 @@ public class JobStoreService {
     private static final Logger LOG = Logger.getLogger(JobStoreService.class);
 
     @Inject
-    DataSource dataSource;
+    JobDao jobDao;
 
     @Inject
     AdvisoryService advisoryService;
@@ -41,45 +43,70 @@ public class JobStoreService {
     }
 
     public void save(ScheduledJob job) {
-        // TODO: Implement JDBC insert
-        LOG.debugf("Saving job %s", job.getId());
+        try {
+            jobDao.insert(job);
+            LOG.debugf("Saved job %s", job.getId());
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to save job %s", job.getId());
+            throw e;
+        }
     }
 
     public void update(ScheduledJob job) {
         job.setVersion(job.getVersion() + 1);
         job.setUpdatedAt(Instant.now());
-        // TODO: Implement JDBC update with optimistic locking
-        LOG.debugf("Updating job %s to state %s", job.getId(), job.getState());
+        try {
+            boolean updated = jobDao.update(job);
+            if (!updated) {
+                LOG.warnf("Optimistic lock failed for job %s", job.getId());
+                throw new DaoException("Optimistic lock failed - job was modified by another instance");
+            }
+            LOG.debugf("Updated job %s to state %s", job.getId(), job.getState());
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to update job %s", job.getId());
+            throw e;
+        }
     }
 
     public Optional<ScheduledJob> findById(UUID id) {
-        // TODO: Implement JDBC select
-        return Optional.empty();
+        try {
+            return jobDao.findById(id);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to find job %s", id);
+            return Optional.empty();
+        }
     }
 
     public List<ScheduledJob> findPendingByKey(String jobKey) {
-        // TODO: Implement JDBC select for PENDING/WAITING jobs with given key
-        return List.of();
+        try {
+            return jobDao.findPendingByKey(jobKey);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to find pending jobs by key %s", jobKey);
+            return List.of();
+        }
     }
 
     public boolean acquire(ScheduledJob job) {
-        // Optimistic lock: UPDATE ... WHERE state = PENDING AND version = ?
-        // Set state = ACQUIRED, acquired_by = instanceId, acquired_at = now
-        // TODO: Implement
-        job.setState(JobState.ACQUIRED);
-        job.setAcquiredBy(instanceRegistry.getInstanceId());
-        job.setAcquiredAt(Instant.now());
-        return true;
+        try {
+            boolean acquired = jobDao.acquire(job.getId(), instanceRegistry.getInstanceId(), job.getVersion());
+            if (acquired) {
+                job.setState(JobState.ACQUIRED);
+                job.setAcquiredBy(instanceRegistry.getInstanceId());
+                job.setAcquiredAt(Instant.now());
+                job.setVersion(job.getVersion() + 1);
+            }
+            return acquired;
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to acquire job %s", job.getId());
+            return false;
+        }
     }
 
     public void handleIncomingJob(ScheduledJob job) {
-        // Always save the job - it's persisted regardless of shard ownership
         if (job.getJobKey() == null) {
-            // No key - schedule immediately
             job.setState(JobState.PENDING);
             save(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
-            // Replicated mode: always enqueue; Sharded mode: only if we own it
             if (shouldEnqueueLocally(job)) {
                 jobQueue.enqueue(job);
             }
@@ -107,7 +134,6 @@ public class JobStoreService {
                     existing.setState(JobState.FAILED);
                     existing.setLastError("Replaced by job " + job.getId());
                     update(existing);
-                    // In replicated mode, all instances have it queued
                     jobQueue.remove(existing.getId());
                     advisoryService.publish(existing, AdvisoryEvent.JOB_REPLACED);
                 }
@@ -127,7 +153,6 @@ public class JobStoreService {
                         jobQueue.enqueue(job);
                     }
                 } else {
-                    // Find the last job in queue
                     ScheduledJob predecessor = existingJobs.getLast();
                     job.setPredecessorId(predecessor.getId());
                     job.setSequenceNum(predecessor.getSequenceNum() + 1);
@@ -148,47 +173,72 @@ public class JobStoreService {
         if (completedJob.getJobKey() == null) {
             return;
         }
-        // Find WAITING jobs with this job as predecessor
-        // TODO: Implement query
-        // For each successor:
-        //   - Calculate effective fire time
-        //   - Set state = PENDING
-        //   - Update in DB
-        //   - Enqueue only if we own the shard (ownsJob(successor))
-        //   - Publish JOB_PROMOTED advisory
+
+        try {
+            List<ScheduledJob> successors = jobDao.findWaitingByPredecessor(completedJob.getId());
+            for (ScheduledJob successor : successors) {
+                if (successor.getSleepStart() == SleepStart.PREV && successor.getSleepDuration() != null) {
+                    Duration sleep = Duration.parse(successor.getSleepDuration());
+                    successor.setEffectiveFireAt(Instant.now().plus(sleep));
+                } else {
+                    successor.setEffectiveFireAt(successor.getFireAt());
+                }
+                successor.setState(JobState.PENDING);
+                successor.setPredecessorId(null);
+                update(successor);
+                advisoryService.publish(successor, AdvisoryEvent.JOB_PROMOTED);
+
+                if (shouldEnqueueLocally(successor)) {
+                    jobQueue.enqueue(successor);
+                }
+                LOG.debugf("Promoted job %s after completion of %s", successor.getId(), completedJob.getId());
+            }
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to promote successors for job %s", completedJob.getId());
+        }
     }
 
     public void cascadeFailure(ScheduledJob failedJob) {
         if (failedJob.getJobKey() == null) {
             return;
         }
-        // Find all WAITING jobs with same key
-        // TODO: Implement query
-        // For each:
-        //   - Set state = FAILED
-        //   - Set lastError = "Predecessor failed: " + failedJob.getId()
-        //   - Update in DB
-        //   - Publish JOB_CASCADE_FAILED advisory
-        LOG.infof("Cascading failure from job %s to waiting jobs with key %s",
-                failedJob.getId(), failedJob.getJobKey());
+
+        try {
+            List<ScheduledJob> waitingJobs = jobDao.findWaitingByKey(failedJob.getJobKey());
+            for (ScheduledJob waiting : waitingJobs) {
+                waiting.setState(JobState.FAILED);
+                waiting.setLastError("Predecessor failed: " + failedJob.getId());
+                update(waiting);
+                advisoryService.publish(waiting, AdvisoryEvent.JOB_CASCADE_FAILED);
+            }
+            LOG.infof("Cascaded failure from job %s to %d waiting jobs with key %s",
+                    failedJob.getId(), waitingJobs.size(), failedJob.getJobKey());
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to cascade failure for job %s", failedJob.getId());
+        }
     }
 
     public List<ScheduledJob> loadPendingJobsForCurrentShard() {
-        // TODO: Query PENDING jobs for this shard only
-        // SQL: SELECT * FROM scheduled_jobs
-        //      WHERE state = 'PENDING'
-        //        AND mod(abs(hashtext(COALESCE(job_key, id::text))), :shardCount) = :shardIndex
         int shardIndex = instanceRegistry.getShardIndex();
         int shardCount = instanceRegistry.getShardCount();
         LOG.infof("Loading pending jobs for shard %d/%d", shardIndex, shardCount);
-        return List.of();
+
+        try {
+            return jobDao.findPendingForShard(shardIndex, shardCount);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to load pending jobs for shard %d/%d", shardIndex, shardCount);
+            return List.of();
+        }
     }
 
     public List<ScheduledJob> loadAllPendingJobs() {
-        // TODO: Query all PENDING jobs (for replicated mode)
-        // SQL: SELECT * FROM scheduled_jobs WHERE state = 'PENDING'
         LOG.infof("Loading all pending jobs (replicated mode)");
-        return List.of();
+        try {
+            return jobDao.findAllPending();
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to load all pending jobs");
+            return List.of();
+        }
     }
 
     public boolean ownsJob(ScheduledJob job) {
@@ -197,23 +247,27 @@ public class JobStoreService {
     }
 
     public List<ScheduledJob> findPendingJobsForShardNotInQueue(Set<UUID> enqueuedIds) {
-        // Query PENDING jobs for this shard that aren't already enqueued
-        // SQL: SELECT * FROM scheduled_jobs
-        //      WHERE state = 'PENDING'
-        //        AND mod(abs(hashtext(COALESCE(job_key, id::text))), :shardCount) = :shardIndex
-        //        AND id NOT IN (:enqueuedIds)
-        // TODO: Implement JDBC query
         int shardIndex = instanceRegistry.getShardIndex();
         int shardCount = instanceRegistry.getShardCount();
         LOG.debugf("Catch-up scan for shard %d/%d, excluding %d enqueued jobs",
             shardIndex, shardCount, enqueuedIds.size());
-        return List.of();
+
+        try {
+            return jobDao.findPendingForShardExcluding(shardIndex, shardCount, enqueuedIds);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to find pending jobs for shard not in queue");
+            return List.of();
+        }
     }
 
     public List<ScheduledJob> findJobs(JobState state, String jobKey, int limit) {
-        // TODO: Implement JDBC query with filters
         LOG.debugf("Finding jobs: state=%s, key=%s, limit=%d", state, jobKey, limit);
-        return List.of();
+        try {
+            return jobDao.findJobs(state, jobKey, limit);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to find jobs");
+            return List.of();
+        }
     }
 
     public boolean cancelJob(UUID id) {
@@ -235,7 +289,19 @@ public class JobStoreService {
     }
 
     public net.maxf.pubsub.scheduler.rest.JobResource.JobStats getStats() {
-        // TODO: Implement count queries
-        return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(0, 0, 0, 0, 0, 0);
+        try {
+            JobDao.JobStats stats = jobDao.getStats();
+            return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(
+                stats.pending(),
+                stats.waiting(),
+                stats.acquired(),
+                stats.firing(),
+                stats.complete(),
+                stats.failed()
+            );
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to get job stats");
+            return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(0, 0, 0, 0, 0, 0);
+        }
     }
 }
