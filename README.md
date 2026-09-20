@@ -33,10 +33,42 @@ It's designed for production: CockroachDB-backed persistence for multi-region de
 
 ## Quick Start
 
-### Docker (recommended)
+### Docker Hub (easiest)
+
+Pull the public image and run with the example compose file:
 
 ```bash
-# Start everything: CockroachDB, Kafka, and Scheduler
+# Get the example files
+curl -O https://raw.githubusercontent.com/maxfortun/pubsub-scheduler/main/examples/docker-compose.yml
+curl -O https://raw.githubusercontent.com/maxfortun/pubsub-scheduler/main/examples/init-postgres.sql
+
+# Start PostgreSQL, Kafka, and Scheduler
+docker-compose up -d
+
+# View logs
+docker-compose logs -f scheduler
+
+# Stop
+docker-compose down -v
+```
+
+Or pull the image directly:
+
+```bash
+docker pull maxfortun/pubsub-scheduler:latest
+```
+
+**Available tags:**
+- `latest` — latest release from main branch
+- `v1.0.0`, `v1.0`, `v1` — semantic versioning
+- `<sha>` — specific commit
+
+### Docker (build from source)
+
+```bash
+# Clone and start everything: CockroachDB, Kafka, and Scheduler
+git clone https://github.com/maxfortun/pubsub-scheduler.git
+cd pubsub-scheduler
 docker-compose up -d
 
 # Run integration tests
@@ -467,10 +499,30 @@ SCHEDULER_CRON_GAP_POLICY: DELAY
 
 ## Docker
 
-### Build
+### Docker Hub
+
+The official image is published to [Docker Hub](https://hub.docker.com/r/maxfortun/pubsub-scheduler):
 
 ```bash
-# Build image
+docker pull maxfortun/pubsub-scheduler:latest
+```
+
+**Available tags:**
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest release from main branch |
+| `v1.0.0` | Specific version |
+| `v1.0` | Latest patch for minor version |
+| `v1` | Latest minor for major version |
+| `main` | Latest commit on main branch |
+| `<sha>` | Specific commit SHA |
+
+**Platforms:** `linux/amd64`, `linux/arm64`
+
+### Build from Source
+
+```bash
+# Build image locally
 docker build -t pubsub-scheduler .
 
 # Build with custom tag
