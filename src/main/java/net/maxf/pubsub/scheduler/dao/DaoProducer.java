@@ -23,6 +23,10 @@ public class DaoProducer {
     MySqlInstanceDao mySqlInstanceDao;
 
     @Inject
+    @CockroachDb
+    CockroachDbInstanceDao cockroachDbInstanceDao;
+
+    @Inject
     @Postgres
     PostgresJobDao postgresJobDao;
 
@@ -30,23 +34,28 @@ public class DaoProducer {
     @MySql
     MySqlJobDao mySqlJobDao;
 
+    @Inject
+    @CockroachDb
+    CockroachDbJobDao cockroachDbJobDao;
+
     @Produces
     @ApplicationScoped
     public InstanceDao instanceDao() {
         LOG.infof("Selecting InstanceDao for database type: %s", dbKind);
-        return selectByDbKind(postgresInstanceDao, mySqlInstanceDao);
+        return selectByDbKind(postgresInstanceDao, mySqlInstanceDao, cockroachDbInstanceDao);
     }
 
     @Produces
     @ApplicationScoped
     public JobDao jobDao() {
         LOG.infof("Selecting JobDao for database type: %s", dbKind);
-        return selectByDbKind(postgresJobDao, mySqlJobDao);
+        return selectByDbKind(postgresJobDao, mySqlJobDao, cockroachDbJobDao);
     }
 
-    private <T> T selectByDbKind(T postgresImpl, T mySqlImpl) {
+    private <T> T selectByDbKind(T postgresImpl, T mySqlImpl, T cockroachDbImpl) {
         return switch (dbKind.toLowerCase()) {
             case "mysql", "mariadb" -> mySqlImpl;
+            case "cockroachdb", "cockroach" -> cockroachDbImpl;
             case "postgresql", "postgres", "h2" -> postgresImpl;
             default -> {
                 LOG.warnf("Unknown database type '%s', defaulting to PostgreSQL DAO", dbKind);

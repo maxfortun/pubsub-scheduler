@@ -62,3 +62,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  cockroachdb:
+    image: cockroachdb/cockroach:v24.1.0
+    container_name: cockroachdb-scheduler-test
+    command: start-single-node --insecure --store=type=mem,size=1GiB
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    environment:
+      COCKROACH_DATABASE: scheduler
+      COCKROACH_USER: scheduler
+    volumes:
+      - ./db/init-cockroachdb.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
