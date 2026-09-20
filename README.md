@@ -841,6 +841,24 @@ docker-compose up -d --scale app=4
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
+### Diagrams
+
+Interactive diagrams are available in `docs/diagrams/` (open with [Excalidraw](https://excalidraw.com)):
+
+**System Overview:**
+| Diagram | Description |
+|---------|-------------|
+| [architecture.excalidraw](docs/diagrams/architecture.excalidraw) | System architecture: message flow, components, headers |
+| [deployment.excalidraw](docs/diagrams/deployment.excalidraw) | Deployment options: single instance, sharded cluster, HTTP transforms |
+| [message-flow.excalidraw](docs/diagrams/message-flow.excalidraw) | Job lifecycle: states (PENDING → COMPLETE), transitions |
+
+**Scheduling Behaviors:**
+| Diagram | Description |
+|---------|-------------|
+| [timing-options.excalidraw](docs/diagrams/timing-options.excalidraw) | AT vs SLEEP vs CRON: absolute time, relative delay, recurring schedules |
+| [key-policies.excalidraw](docs/diagrams/key-policies.excalidraw) | QUEUE (chain), REPLACE (supersede), SKIP (dedupe) with examples |
+| [sleep-start.excalidraw](docs/diagrams/sleep-start.excalidraw) | SELF vs PREV: sleep from arrival vs sleep from predecessor completion |
+
 ## License
 
 TBD
