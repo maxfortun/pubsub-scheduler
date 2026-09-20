@@ -220,6 +220,61 @@ public class PostgresJobDao implements JobDao {
     }
 
     @Override
+    public List<ScheduledJob> findJobsPaged(JobState state, String jobKey, int offset, int limit) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM scheduled_jobs WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        if (state != null) {
+            sql.append(" AND state = ?");
+            params.add(state.name());
+        }
+        if (jobKey != null) {
+            sql.append(" AND job_key = ?");
+            params.add(jobKey);
+        }
+        sql.append(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        return queryJobs(sql.toString(), ps -> {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+        });
+    }
+
+    @Override
+    public long countJobs(JobState state, String jobKey) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM scheduled_jobs WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        if (state != null) {
+            sql.append(" AND state = ?");
+            params.add(state.name());
+        }
+        if (jobKey != null) {
+            sql.append(" AND job_key = ?");
+            params.add(jobKey);
+        }
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOG.errorf(e, "Failed to count jobs");
+            throw new DaoException("Failed to count jobs", e);
+        }
+        return 0;
+    }
+
+    @Override
     public boolean acquire(UUID jobId, String acquiredBy, int expectedVersion) {
         String sql = """
             UPDATE scheduled_jobs SET

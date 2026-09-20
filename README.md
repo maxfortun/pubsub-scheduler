@@ -876,6 +876,62 @@ The scheduler includes OpenAPI/Swagger documentation:
 - **Swagger UI**: http://localhost:8080/swagger-ui
 - **OpenAPI spec**: http://localhost:8080/q/openapi
 
+### Jobs API
+
+```bash
+# List jobs with pagination (default: offset=0, limit=100)
+curl http://localhost:8080/api/jobs
+
+# Paginate through results
+curl "http://localhost:8080/api/jobs?offset=0&limit=50"
+curl "http://localhost:8080/api/jobs?offset=50&limit=50"
+
+# Filter by state
+curl "http://localhost:8080/api/jobs?state=PENDING"
+curl "http://localhost:8080/api/jobs?state=WAITING"
+
+# Filter by job key
+curl "http://localhost:8080/api/jobs?key=order-123"
+
+# Combined filters with pagination
+curl "http://localhost:8080/api/jobs?state=PENDING&key=order-123&offset=0&limit=25"
+
+# Get a specific job by ID
+curl http://localhost:8080/api/jobs/{job-id}
+
+# Cancel a pending job
+curl -X DELETE http://localhost:8080/api/jobs/{job-id}
+
+# Get job statistics
+curl http://localhost:8080/api/jobs/stats
+```
+
+**Pagination Response:**
+
+```json
+{
+  "items": [...],
+  "offset": 0,
+  "limit": 100,
+  "total": 1523,
+  "hasMore": true
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `items` | Array of jobs for the current page |
+| `offset` | Starting position (0-indexed) |
+| `limit` | Page size (capped by `scheduler.api.max-limit`) |
+| `total` | Total count matching the filters |
+| `hasMore` | `true` if more results exist beyond this page |
+
+**Configuration:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULER_API_MAX_LIMIT` | Maximum allowed limit per request | `1000` |
+
 ### Instance API
 
 ```bash

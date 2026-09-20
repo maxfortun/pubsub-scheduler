@@ -30,6 +30,10 @@ public interface JobDao {
 
     List<ScheduledJob> findJobs(JobState state, String jobKey, int limit);
 
+    List<ScheduledJob> findJobsPaged(JobState state, String jobKey, int offset, int limit);
+
+    long countJobs(JobState state, String jobKey);
+
     boolean acquire(UUID jobId, String acquiredBy, int expectedVersion);
 
     JobStats getStats();
