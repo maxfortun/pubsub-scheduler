@@ -53,6 +53,7 @@ class JobStoreServiceTest {
         when(instanceRegistry.ownsKey(anyString())).thenReturn(true);
         doNothing().when(instanceDao).upsert(anyString(), any(), any());
         when(instanceDao.updateHeartbeat(anyString(), any())).thenReturn(1);
+        when(jobDao.update(any(ScheduledJob.class))).thenReturn(true);
     }
 
     @Nested

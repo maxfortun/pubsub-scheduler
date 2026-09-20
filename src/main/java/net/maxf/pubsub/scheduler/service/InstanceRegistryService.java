@@ -203,6 +203,13 @@ public class InstanceRegistryService {
         }
     }
 
+    /**
+     * Forces immediate shard recomputation. Package-private for testing.
+     */
+    void refreshShard() {
+        recomputeShard();
+    }
+
     public Optional<InstanceInfo> getInstanceInfo(String id) {
         try {
             return instanceDao.findById(id)
