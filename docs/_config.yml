@@ -1,0 +1,26 @@
+title: PubSub Scheduler
+description: Delayed and scheduled message delivery for Kafka, ActiveMQ, and any pub/sub system
+url: https://maxfortun.github.io
+baseurl: /pubsub-scheduler
+
+theme: jekyll-theme-cayman
+
+# GitHub metadata
+repository: maxfortun/pubsub-scheduler
+
+# Exclude from build
+exclude:
+  - diagrams/*.excalidraw
+  - website/
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Collections for future docs
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:name/
