@@ -54,6 +54,7 @@ dependencies {
     testImplementation("org.apache.camel.quarkus:camel-quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("io.quarkus:quarkus-jdbc-h2")
+    testImplementation("io.quarkus:quarkus-jdbc-mysql")
 }
 
 group = "net.maxf"
