@@ -199,14 +199,25 @@ abstract class AbstractKafkaIT {
 
         @Test
         @Order(5)
-        void schedulerCron_sendsToDeadLetterQueue() throws Exception {
+        void schedulerCron_schedulesJobAtNextExecution() throws Exception {
+            String jobKey = "cron-test-" + UUID.randomUUID();
+            Instant before = Instant.now();
+
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
-            record.headers().add(header("SCHEDULER_CRON", "0 0 * * *"));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_CRON", "* * * * *")); // every minute
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ (CRON not implemented)");
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "CRON job should be created");
+            ScheduledJob job = jobs.get(0);
+            assertEquals("* * * * *", job.getCronExpression());
+            // Should fire within the next 60 seconds
+            assertTrue(job.getFireAt().isAfter(before.minusSeconds(1)));
+            assertTrue(job.getFireAt().isBefore(before.plusSeconds(61)));
         }
     }
 

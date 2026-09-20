@@ -142,4 +142,66 @@ class ScheduledJobTest {
         assertEquals(JobState.ACQUIRED, job.getState());
         assertEquals(10, job.getMaxRetries());
     }
+
+    @Test
+    void isRepeating_defaultSleepRepeatOne_returnsFalse() {
+        ScheduledJob job = new ScheduledJob();
+
+        assertFalse(job.isRepeating());
+    }
+
+    @Test
+    void isRepeating_sleepRepeatZero_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setSleepRepeat(0);
+
+        assertTrue(job.isRepeating());
+    }
+
+    @Test
+    void isRepeating_sleepRepeatNegative_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setSleepRepeat(-1);
+
+        assertTrue(job.isRepeating());
+    }
+
+    @Test
+    void isRepeating_sleepRepeatGreaterThanOne_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setSleepRepeat(5);
+
+        assertTrue(job.isRepeating());
+    }
+
+    @Test
+    void isRepeating_sleepRepeatTwo_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setSleepRepeat(2);
+
+        assertTrue(job.isRepeating());
+    }
+
+    @Test
+    void isRepeating_withCronExpression_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setCronExpression("0 0 * * *");
+
+        assertTrue(job.isRepeating());
+    }
+
+    @Test
+    void isCron_withoutCronExpression_returnsFalse() {
+        ScheduledJob job = new ScheduledJob();
+
+        assertFalse(job.isCron());
+    }
+
+    @Test
+    void isCron_withCronExpression_returnsTrue() {
+        ScheduledJob job = new ScheduledJob();
+        job.setCronExpression("0 0 * * *");
+
+        assertTrue(job.isCron());
+    }
 }

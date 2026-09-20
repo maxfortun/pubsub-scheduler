@@ -136,10 +136,30 @@ class IngestProcessorTest {
         }
 
         @Test
-        void schedulerCron_throwsUnsupportedForNow() {
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
+        void schedulerCron_setsFireAtToNextExecution() throws Exception {
+            message.setHeader("SCHEDULER_CRON", "0 0 * * *"); // daily at midnight
+            Instant before = Instant.now();
 
-            assertThrows(UnsupportedOperationException.class, () -> processor.process(exchange));
+            processor.process(exchange);
+
+            verify(jobStore).handleIncomingJob(jobCaptor.capture());
+            ScheduledJob job = jobCaptor.getValue();
+            assertNotNull(job.getFireAt());
+            assertTrue(job.getFireAt().isAfter(before));
+            assertEquals("0 0 * * *", job.getCronExpression());
+        }
+
+        @Test
+        void schedulerCron_everyMinute_schedulesWithinMinute() throws Exception {
+            message.setHeader("SCHEDULER_CRON", "* * * * *"); // every minute
+            Instant before = Instant.now();
+
+            processor.process(exchange);
+
+            verify(jobStore).handleIncomingJob(jobCaptor.capture());
+            ScheduledJob job = jobCaptor.getValue();
+            // Should fire within the next 60 seconds
+            assertTrue(job.getFireAt().isBefore(before.plusSeconds(61)));
         }
 
         @Test
@@ -193,21 +213,30 @@ class IngestProcessorTest {
         }
 
         @Test
-        void cronEnd_setsCronEndTime() {
+        void cronEnd_setsCronEndTime() throws Exception {
             message.setHeader("SCHEDULER_CRON", "0 0 * * *");
             Instant endTime = Instant.now().plus(30, ChronoUnit.DAYS);
             message.setHeader("SCHEDULER_CRON_END", endTime.toString());
 
-            // Will throw UnsupportedOperationException for cron calc, but tests the parsing path
-            assertThrows(UnsupportedOperationException.class, () -> processor.process(exchange));
+            processor.process(exchange);
+
+            verify(jobStore).handleIncomingJob(jobCaptor.capture());
+            ScheduledJob job = jobCaptor.getValue();
+            assertEquals("0 0 * * *", job.getCronExpression());
+            assertEquals(endTime, job.getCronEnd());
         }
 
         @Test
-        void cronCount_setsCronMaxCount() {
+        void cronCount_setsCronMaxCount() throws Exception {
             message.setHeader("SCHEDULER_CRON", "0 0 * * *");
             message.setHeader("SCHEDULER_CRON_COUNT", 5);
 
-            assertThrows(UnsupportedOperationException.class, () -> processor.process(exchange));
+            processor.process(exchange);
+
+            verify(jobStore).handleIncomingJob(jobCaptor.capture());
+            ScheduledJob job = jobCaptor.getValue();
+            assertEquals("0 0 * * *", job.getCronExpression());
+            assertEquals(Integer.valueOf(5), job.getCronMaxCount());
         }
 
         @Test

@@ -44,6 +44,9 @@ dependencies {
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
 
+    // Cron expression parsing
+    implementation("com.cronutils:cron-utils:9.2.1")
+
     // Health & metrics
     implementation("io.quarkus:quarkus-smallrye-health")
     implementation("io.quarkus:quarkus-micrometer-registry-prometheus")

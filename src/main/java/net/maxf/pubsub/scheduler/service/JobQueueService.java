@@ -192,28 +192,50 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     }
 
     private boolean shouldRepeat(ScheduledJob job) {
-        if (job.getSleepDuration() == null) {
+        // Check CRON-based repeat
+        if (job.getCronExpression() != null) {
+            return shouldRepeatCron(job);
+        }
+        // Check SLEEP-based repeat
+        if (job.getSleepDuration() != null) {
+            int repeat = job.getSleepRepeat();
+            return repeat <= 0 || repeat > 1;
+        }
+        return false;
+    }
+
+    private boolean shouldRepeatCron(ScheduledJob job) {
+        // Check if past end time
+        if (job.getCronEnd() != null && Instant.now().isAfter(job.getCronEnd())) {
             return false;
         }
-        int repeat = job.getSleepRepeat();
-        // 0 or negative means infinite, positive means that many times
-        return repeat <= 0 || repeat > 1;
+        // Check if reached max count
+        if (job.getCronMaxCount() != null && job.getCronFireCount() >= job.getCronMaxCount()) {
+            return false;
+        }
+        return true;
     }
 
     private void scheduleNextRepetition(ScheduledJob job) {
-        Duration sleepDuration = Duration.parse(job.getSleepDuration());
-        Instant nextFire = Instant.now().plus(sleepDuration);
+        Instant nextFire;
+
+        if (job.getCronExpression() != null) {
+            nextFire = net.maxf.pubsub.scheduler.processor.IngestProcessor
+                .calculateNextCronFireFrom(job.getCronExpression(), Instant.now());
+            job.setCronFireCount(job.getCronFireCount() + 1);
+        } else {
+            Duration sleepDuration = Duration.parse(job.getSleepDuration());
+            nextFire = Instant.now().plus(sleepDuration);
+            if (job.getSleepRepeat() > 0) {
+                job.setSleepRepeat(job.getSleepRepeat() - 1);
+            }
+        }
 
         job.setFireAt(nextFire);
         job.setEffectiveFireAt(nextFire);
         job.setState(JobState.PENDING);
         job.setUpdatedAt(Instant.now());
         job.setRetryCount(0);
-
-        // Decrement repeat count if not infinite
-        if (job.getSleepRepeat() > 0) {
-            job.setSleepRepeat(job.getSleepRepeat() - 1);
-        }
 
         jobStore.update(job);
         advisoryService.publish(job, AdvisoryEvent.JOB_DONE);

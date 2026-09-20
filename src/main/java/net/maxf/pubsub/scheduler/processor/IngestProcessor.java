@@ -1,5 +1,10 @@
 package net.maxf.pubsub.scheduler.processor;
 
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.model.time.ExecutionTime;
+import com.cronutils.parser.CronParser;
 import net.maxf.pubsub.scheduler.model.SleepStart;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
@@ -17,8 +22,10 @@ import org.jboss.logging.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 @Named("ingestProcessor")
@@ -162,8 +169,27 @@ public class IngestProcessor implements Processor {
         jobStore.handleIncomingJob(job);
     }
 
+    private static final CronParser CRON_PARSER = new CronParser(
+        CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX)
+    );
+
     private Instant calculateNextCronFire(String cronExpression) {
-        // TODO: Use cron-utils or similar library to calculate next fire time
-        throw new UnsupportedOperationException("CRON support not yet implemented");
+        Cron cron = CRON_PARSER.parse(cronExpression);
+        ExecutionTime executionTime = ExecutionTime.forCron(cron);
+        Optional<ZonedDateTime> nextExecution = executionTime.nextExecution(ZonedDateTime.now());
+        return nextExecution
+            .map(ZonedDateTime::toInstant)
+            .orElseThrow(() -> new IllegalArgumentException("Cannot calculate next execution for cron: " + cronExpression));
+    }
+
+    public static Instant calculateNextCronFireFrom(String cronExpression, Instant from) {
+        Cron cron = CRON_PARSER.parse(cronExpression);
+        ExecutionTime executionTime = ExecutionTime.forCron(cron);
+        Optional<ZonedDateTime> nextExecution = executionTime.nextExecution(
+            ZonedDateTime.ofInstant(from, java.time.ZoneId.systemDefault())
+        );
+        return nextExecution
+            .map(ZonedDateTime::toInstant)
+            .orElseThrow(() -> new IllegalArgumentException("Cannot calculate next execution for cron: " + cronExpression));
     }
 }
