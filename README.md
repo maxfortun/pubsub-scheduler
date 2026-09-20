@@ -885,4 +885,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 ## License
 
-TBD
+[PolyForm Noncommercial 1.0.0](LICENSE)
+
+**Permitted:** Personal use, research, education, non-profit, evaluation, hobby projects.
+
+**Restricted:** Commercial use requires a separate license. [Contact the author](https://github.com/maxfortun) for commercial licensing.
