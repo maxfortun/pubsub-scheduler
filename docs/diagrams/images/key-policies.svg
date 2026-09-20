@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 -10 960 700" width="960" height="700">
+  <rect x="20" y="-10" width="960" height="700" fill="white"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
+  </style>
+  <text x="500" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >Key Policies: QUEUE, REPLACE, SKIP</text>
+  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >When multiple jobs share the same SCHEDULER_KEY, the KEY_POLICY determines behavior:</text>
+  <rect x="50" y="100" width="900" height="180" fill="#ebfbee" stroke="#2f9e44" stroke-width="1" rx="8" />
+  <text x="60" y="125.3" font-size="18" fill="#2f9e44" text-anchor="start" >QUEUE (Default) - Chain Jobs</text>
+  <text x="60" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Jobs with same key execute in order.</text>
+  <text x="60" y="164.6" font-size="12" fill="#1e1e1e" text-anchor="start" >Each waits for predecessor to complete.</text>
+  <line x1="450" y1="180" x2="900" y2="180" stroke="#868e96" stroke-width="2"  />
+  <rect x="460" y="130" width="80" height="40" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1" rx="8" />
+  <text x="475" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Job A</text>
+  <text x="465" y="163.5" font-size="10" fill="#2f9e44" text-anchor="start" class="mono">PENDING</text>
+  <rect x="560" y="130" width="80" height="40" fill="#e5dbff" stroke="#862e9c" stroke-width="1" rx="8" />
+  <text x="575" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Job B</text>
+  <text x="565" y="163.5" font-size="10" fill="#862e9c" text-anchor="start" class="mono">WAITING</text>
+  <rect x="660" y="130" width="80" height="40" fill="#e5dbff" stroke="#862e9c" stroke-width="1" rx="8" />
+  <text x="675" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Job C</text>
+  <text x="665" y="163.5" font-size="10" fill="#862e9c" text-anchor="start" class="mono">WAITING</text>
+  <line x1="545" y1="150" x2="555" y2="150" stroke="#1e1e1e" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <line x1="645" y1="150" x2="655" y2="150" stroke="#1e1e1e" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <ellipse cx="497.5" cy="197.5" rx="7.5" ry="7.5" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <ellipse cx="597.5" cy="197.5" rx="7.5" ry="7.5" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <ellipse cx="697.5" cy="197.5" rx="7.5" ry="7.5" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="800" y="197.35" font-size="11" fill="#c92a2a" text-anchor="start" >fire order →</text>
+  <text x="460" y="219.35" font-size="11" fill="#495057" text-anchor="start" class="mono">All have key: order-123</text>
+  <text x="60" y="199.35" font-size="11" fill="#495057" text-anchor="start" >Use for:</text>
+  <text x="60" y="212.54999999999998" font-size="11" fill="#495057" text-anchor="start" >• Ordered processing (order items)</text>
+  <text x="60" y="225.75" font-size="11" fill="#495057" text-anchor="start" >• Dependent tasks (A must finish before B)</text>
+  <text x="60" y="238.95" font-size="11" fill="#495057" text-anchor="start" >• Rate limiting per entity</text>
+  <text x="60" y="259.35" font-size="11" fill="#c92a2a" text-anchor="start" >⚠️ If Job A fails, B and C are CASCADE_FAILED</text>
+  <rect x="50" y="300" width="900" height="180" fill="#fff4e6" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="60" y="325.3" font-size="18" fill="#e67700" text-anchor="start" >REPLACE - Cancel &amp; Reschedule</text>
+  <text x="60" y="350.2" font-size="12" fill="#1e1e1e" text-anchor="start" >New job cancels all pending jobs with same key.</text>
+  <text x="60" y="364.59999999999997" font-size="12" fill="#1e1e1e" text-anchor="start" >Only the latest job survives.</text>
+  <rect x="450" y="320" width="200" height="70" fill="#f8f9fa" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="520" y="335.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Before:</text>
+  <rect x="460" y="345" width="60" height="30" fill="#dee2e6" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="470" y="360.5" font-size="10" fill="#1e1e1e" text-anchor="start" >Job A</text>
+  <rect x="530" y="345" width="60" height="30" fill="#dee2e6" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="540" y="360.5" font-size="10" fill="#1e1e1e" text-anchor="start" >Job B</text>
+  <rect x="600" y="345" width="60" height="30" fill="#fff3bf" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="605" y="360.5" font-size="10" fill="#1e1e1e" text-anchor="start" >Job C</text>
+  <line x1="660" y1="360" x2="700" y2="360" stroke="#1e1e1e" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <rect x="710" y="320" width="200" height="70" fill="#f8f9fa" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="785" y="335.2" font-size="12" fill="#1e1e1e" text-anchor="start" >After:</text>
+  <rect x="720" y="345" width="60" height="30" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1" rx="8" stroke-dasharray="8,4"/>
+  <text x="740" y="361.6" font-size="16" fill="#c92a2a" text-anchor="start" >✗</text>
+  <rect x="790" y="345" width="60" height="30" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1" rx="8" stroke-dasharray="8,4"/>
+  <text x="810" y="361.6" font-size="16" fill="#c92a2a" text-anchor="start" >✗</text>
+  <rect x="860" y="345" width="60" height="30" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1" rx="8" />
+  <text x="865" y="360.5" font-size="10" fill="#1e1e1e" text-anchor="start" >Job C</text>
+  <text x="60" y="399.35" font-size="11" fill="#495057" text-anchor="start" >Use for:</text>
+  <text x="60" y="412.55" font-size="11" fill="#495057" text-anchor="start" >• Debounce (only latest matters)</text>
+  <text x="60" y="425.75" font-size="11" fill="#495057" text-anchor="start" >• Cache refresh (supersede old request)</text>
+  <text x="60" y="438.95000000000005" font-size="11" fill="#495057" text-anchor="start" >• "Last write wins" updates</text>
+  <text x="460" y="409.35" font-size="11" fill="#495057" text-anchor="start" class="mono">A, B receive advisory: JOB_REPLACED</text>
+  <text x="460" y="422.55" font-size="11" fill="#495057" text-anchor="start" class="mono">C receives advisory: JOB_SCHEDULED</text>
+  <rect x="50" y="500" width="900" height="160" fill="#e7f5ff" stroke="#1971c2" stroke-width="1" rx="8" />
+  <text x="60" y="525.3" font-size="18" fill="#1971c2" text-anchor="start" >SKIP - Ignore Duplicates</text>
+  <text x="60" y="550.2" font-size="12" fill="#1e1e1e" text-anchor="start" >New job is silently dropped if any job</text>
+  <text x="60" y="564.6" font-size="12" fill="#1e1e1e" text-anchor="start" >with same key already exists.</text>
+  <rect x="450" y="520" width="200" height="70" fill="#f8f9fa" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="510" y="535.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Existing:</text>
+  <rect x="510" y="545" width="80" height="35" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1" rx="8" />
+  <text x="530" y="564.35" font-size="11" fill="#1e1e1e" text-anchor="start" >Job A</text>
+  <rect x="680" y="545" width="80" height="35" fill="#dee2e6" stroke="#868e96" stroke-width="1" rx="8" stroke-dasharray="8,4"/>
+  <text x="720" y="556.5" font-size="10" fill="#1e1e1e" text-anchor="middle" >Job B</text>
+  <text x="720" y="568.5" font-size="10" fill="#1e1e1e" text-anchor="middle" >(dropped)</text>
+  <line x1="765" y1="562" x2="795" y2="562" stroke="#c92a2a" stroke-width="1" stroke-dasharray="8,4" marker-end="url(#arrowhead)"/>
+  <text x="800" y="569" font-size="20" fill="#1e1e1e" text-anchor="start" >🗑️</text>
+  <text x="60" y="599.35" font-size="11" fill="#495057" text-anchor="start" >Use for:</text>
+  <text x="60" y="612.5500000000001" font-size="11" fill="#495057" text-anchor="start" >• Idempotent operations</text>
+  <text x="60" y="625.75" font-size="11" fill="#495057" text-anchor="start" >• "Fire once" per key</text>
+  <text x="60" y="638.95" font-size="11" fill="#495057" text-anchor="start" >• Preventing duplicate notifications</text>
+  <text x="460" y="609.35" font-size="11" fill="#495057" text-anchor="start" class="mono">B receives advisory: JOB_SKIPPED</text>
+  <text x="460" y="622.5500000000001" font-size="11" fill="#495057" text-anchor="start" class="mono">(never stored in database)</text>
+</svg>

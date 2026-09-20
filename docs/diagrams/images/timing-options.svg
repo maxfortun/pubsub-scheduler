@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 -10 790 740" width="790" height="740">
+  <rect x="20" y="-10" width="790" height="740" fill="white"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
+  </style>
+  <text x="500" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >Timing Options: AT, SLEEP, CRON</text>
+  <text x="50" y="95.3" font-size="18" fill="#1971c2" text-anchor="start" >SCHEDULER_AT (Absolute Time)</text>
+  <line x1="50" y1="150" x2="650" y2="150" stroke="#868e96" stroke-width="2"  />
+  <ellipse cx="90" cy="150" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="70" y="175.2" font-size="12" fill="#1e1e1e" text-anchor="start" >now</text>
+  <ellipse cx="490" cy="150" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="440" y="174.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">2026-09-20T15:00Z</text>
+  <line x1="105" y1="130" x2="475" y2="130" stroke="#1971c2" stroke-width="1" stroke-dasharray="8,4" marker-end="url(#arrowhead)"/>
+  <rect x="50" y="110" width="280" height="25" fill="#d0ebff" stroke="#1971c2" stroke-width="1" rx="8" />
+  <text x="55" y="123.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_AT: 2026-09-20T15:00:00Z</text>
+  <text x="50" y="200.2" font-size="12" fill="#495057" text-anchor="start" >Fire at exact timestamp. Use for: scheduled reports,</text>
+  <text x="50" y="214.6" font-size="12" fill="#495057" text-anchor="start" >appointment reminders, time-sensitive actions.</text>
+  <text x="50" y="265.3" font-size="18" fill="#e67700" text-anchor="start" >SCHEDULER_SLEEP (Relative Delay)</text>
+  <line x1="50" y1="320" x2="650" y2="320" stroke="#868e96" stroke-width="2"  />
+  <ellipse cx="90" cy="320" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="65" y="345.2" font-size="12" fill="#1e1e1e" text-anchor="start" >arrived</text>
+  <ellipse cx="290" cy="320" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="265" y="345.2" font-size="12" fill="#1e1e1e" text-anchor="start" >+5 min</text>
+  <line x1="105" y1="300" x2="275" y2="300" stroke="#e67700" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <text x="160" y="290.2" font-size="12" fill="#e67700" text-anchor="start" class="mono">PT5M</text>
+  <rect x="50" y="280" width="200" height="25" fill="#fff3bf" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="55" y="293.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT5M</text>
+  <rect x="350" y="270" width="300" height="80" fill="#fff9db" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="360" y="285.2" font-size="12" fill="#e67700" text-anchor="start" >With SLEEP_REPEAT:</text>
+  <text x="360" y="304.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT5M</text>
+  <text x="360" y="317.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP_REPEAT: 3</text>
+  <text x="360" y="330.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">→ Fires 3 times, 5 min apart</text>
+  <text x="50" y="370.2" font-size="12" fill="#495057" text-anchor="start" >Fire after duration from arrival. Use for: retry delays,</text>
+  <text x="50" y="384.59999999999997" font-size="12" fill="#495057" text-anchor="start" >cooldown periods, debouncing.</text>
+  <text x="50" y="435.3" font-size="18" fill="#862e9c" text-anchor="start" >SCHEDULER_CRON (Recurring)</text>
+  <line x1="50" y1="510" x2="750" y2="510" stroke="#868e96" stroke-width="2"  />
+  <ellipse cx="110" cy="510" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="90" y="534.35" font-size="11" fill="#1e1e1e" text-anchor="start" >9:00</text>
+  <ellipse cx="260" cy="510" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="240" y="534.35" font-size="11" fill="#1e1e1e" text-anchor="start" >9:00</text>
+  <ellipse cx="410" cy="510" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="390" y="534.35" font-size="11" fill="#1e1e1e" text-anchor="start" >9:00</text>
+  <text x="550" y="513.6" font-size="16" fill="#1e1e1e" text-anchor="start" >...</text>
+  <text x="90" y="553.5" font-size="10" fill="#868e96" text-anchor="start" >Mon</text>
+  <text x="240" y="553.5" font-size="10" fill="#868e96" text-anchor="start" >Tue</text>
+  <text x="390" y="553.5" font-size="10" fill="#868e96" text-anchor="start" >Wed</text>
+  <rect x="50" y="455" width="220" height="25" fill="#e5dbff" stroke="#862e9c" stroke-width="1" rx="8" />
+  <text x="55" y="468.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_CRON: 0 9 * * *</text>
+  <rect x="500" y="420" width="280" height="150" fill="#f3d9fa" stroke="#862e9c" stroke-width="1" rx="8" />
+  <text x="510" y="435.2" font-size="12" fill="#862e9c" text-anchor="start" >CRON Options:</text>
+  <text x="510" y="453.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_CONCURRENT: false</text>
+  <text x="510" y="465.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Wait for prev to finish</text>
+  <text x="510" y="477.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono"></text>
+  <text x="510" y="489.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_GAP_MIN: PT10M</text>
+  <text x="510" y="501.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Min 10min between runs</text>
+  <text x="510" y="513.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono"></text>
+  <text x="510" y="525.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_END: 2026-12-31T23:59:59Z</text>
+  <text x="510" y="537.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Stop after date</text>
+  <text x="510" y="549.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono"></text>
+  <text x="510" y="561.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_COUNT: 30</text>
+  <text x="510" y="573.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Stop after 30 runs</text>
+  <text x="50" y="580.2" font-size="12" fill="#495057" text-anchor="start" >Fire on schedule. Use for: daily reports, cleanup tasks,</text>
+  <text x="50" y="594.6" font-size="12" fill="#495057" text-anchor="start" >periodic sync, health checks.</text>
+  <rect x="50" y="620" width="400" height="80" fill="#f8f9fa" stroke="#868e96" stroke-width="1" rx="8" />
+  <text x="60" y="635.2" font-size="12" fill="#495057" text-anchor="start" >ISO 8601 Duration Examples:</text>
+  <text x="60" y="654.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">PT5M = 5 minutes    PT1H = 1 hour    PT30S = 30 seconds</text>
+  <text x="60" y="667.5500000000001" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">PT1H30M = 1.5 hours    P1D = 1 day    P7D = 7 days</text>
+</svg>

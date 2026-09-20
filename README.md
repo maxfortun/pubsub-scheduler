@@ -843,21 +843,45 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 ### Diagrams
 
-Interactive diagrams are available in `docs/diagrams/` (open with [Excalidraw](https://excalidraw.com)):
+#### System Architecture
 
-**System Overview:**
-| Diagram | Description |
-|---------|-------------|
-| [architecture.excalidraw](docs/diagrams/architecture.excalidraw) | System architecture: message flow, components, headers |
-| [deployment.excalidraw](docs/diagrams/deployment.excalidraw) | Deployment options: single instance, sharded cluster, HTTP transforms |
-| [message-flow.excalidraw](docs/diagrams/message-flow.excalidraw) | Job lifecycle: states (PENDING → COMPLETE), transitions |
+![Architecture](docs/diagrams/images/architecture.png)
 
-**Scheduling Behaviors:**
-| Diagram | Description |
-|---------|-------------|
-| [timing-options.excalidraw](docs/diagrams/timing-options.excalidraw) | AT vs SLEEP vs CRON: absolute time, relative delay, recurring schedules |
-| [key-policies.excalidraw](docs/diagrams/key-policies.excalidraw) | QUEUE (chain), REPLACE (supersede), SKIP (dedupe) with examples |
-| [sleep-start.excalidraw](docs/diagrams/sleep-start.excalidraw) | SELF vs PREV: sleep from arrival vs sleep from predecessor completion |
+*Message flow: Producer → scheduler.in → Scheduler (IngestProcessor, transforms, DB, queue) → destination → Consumer*
+
+#### Deployment Options
+
+![Deployment](docs/diagrams/images/deployment.png)
+
+*Single instance (dev), sharded cluster (production), HTTP transforms (claim check)*
+
+#### Job Lifecycle
+
+![Message Flow](docs/diagrams/images/message-flow.png)
+
+*States: PENDING → ACQUIRED → FIRING → COMPLETE. Key policies determine queueing behavior.*
+
+#### Timing Options: AT, SLEEP, CRON
+
+![Timing Options](docs/diagrams/images/timing-options.png)
+
+*AT: absolute time. SLEEP: relative delay with repeat. CRON: recurring with gap/end options.*
+
+#### Key Policies: QUEUE, REPLACE, SKIP
+
+![Key Policies](docs/diagrams/images/key-policies.png)
+
+*QUEUE: chain jobs in order. REPLACE: cancel existing. SKIP: drop duplicates.*
+
+#### Sleep Start: SELF vs PREV
+
+![Sleep Start](docs/diagrams/images/sleep-start.png)
+
+*SELF: sleep from arrival. PREV: sleep from predecessor completion (rate limiting).*
+
+---
+
+*Interactive versions available in [`docs/diagrams/`](docs/diagrams/) — open `.excalidraw` files with [excalidraw.com](https://excalidraw.com)*
 
 ## License
 

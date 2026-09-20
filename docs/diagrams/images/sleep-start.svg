@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 -10 980 630" width="980" height="630">
+  <rect x="20" y="-10" width="980" height="630" fill="white"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
+  </style>
+  <text x="505" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >SLEEP_START: SELF vs PREV</text>
+  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >Controls the reference point for SCHEDULER_SLEEP duration when using QUEUE policy:</text>
+  <rect x="50" y="100" width="450" height="250" fill="#e7f5ff" stroke="#1971c2" stroke-width="1" rx="8" />
+  <text x="60" y="125.3" font-size="18" fill="#1971c2" text-anchor="start" >SLEEP_START: SELF (Default)</text>
+  <text x="60" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Sleep duration counted from THIS job's arrival time.</text>
+  <text x="60" y="164.6" font-size="12" fill="#1e1e1e" text-anchor="start" >Each job sleeps independently.</text>
+  <line x1="70" y1="280" x2="470" y2="280" stroke="#868e96" stroke-width="2"  />
+  <ellipse cx="100" cy="280" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="80" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >A arrives</text>
+  <ellipse cx="150" cy="280" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="130" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >B arrives</text>
+  <ellipse cx="250" cy="280" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="230" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >A fires</text>
+  <ellipse cx="300" cy="280" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="280" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >B fires</text>
+  <line x1="105" y1="240" x2="245" y2="240" stroke="#1971c2" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <text x="150" y="233.5" font-size="10" fill="#1971c2" text-anchor="start" class="mono">PT5M</text>
+  <line x1="155" y1="255" x2="295" y2="255" stroke="#1971c2" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <text x="200" y="265.5" font-size="10" fill="#1971c2" text-anchor="start" class="mono">PT5M</text>
+  <text x="60" y="324.35" font-size="11" fill="#495057" text-anchor="start" >B's fire time = B's arrival + 5min</text>
+  <text x="60" y="337.55" font-size="11" fill="#495057" text-anchor="start" >(B waits for A, but its scheduled time is from its own arrival)</text>
+  <rect x="520" y="100" width="450" height="250" fill="#fff4e6" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="530" y="125.3" font-size="18" fill="#e67700" text-anchor="start" >SLEEP_START: PREV</text>
+  <text x="530" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Sleep duration counted from PREVIOUS job's completion.</text>
+  <text x="530" y="164.6" font-size="12" fill="#1e1e1e" text-anchor="start" >Creates fixed gaps between executions.</text>
+  <line x1="540" y1="280" x2="940" y2="280" stroke="#868e96" stroke-width="2"  />
+  <ellipse cx="570" cy="280" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="550" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >A arrives</text>
+  <ellipse cx="620" cy="280" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
+  <text x="600" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >B arrives</text>
+  <ellipse cx="720" cy="280" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="700" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >A fires</text>
+  <ellipse cx="870" cy="280" rx="10" ry="10" fill="#ffc9c9" stroke="#c92a2a" stroke-width="1"/>
+  <text x="850" y="302.65" font-size="9" fill="#1e1e1e" text-anchor="start" >B fires</text>
+  <line x1="575" y1="240" x2="715" y2="240" stroke="#e67700" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <text x="620" y="233.5" font-size="10" fill="#e67700" text-anchor="start" class="mono">PT5M</text>
+  <line x1="725" y1="255" x2="865" y2="255" stroke="#e67700" stroke-width="1"  marker-end="url(#arrowhead)"/>
+  <text x="770" y="265.5" font-size="10" fill="#e67700" text-anchor="start" class="mono">PT5M</text>
+  <text x="530" y="324.35" font-size="11" fill="#495057" text-anchor="start" >B's fire time = A's completion + 5min</text>
+  <text x="530" y="337.55" font-size="11" fill="#495057" text-anchor="start" >(Guaranteed 5min gap after A completes)</text>
+  <text x="50" y="395.3" font-size="18" fill="#495057" text-anchor="start" >Example: Rate-Limited API Calls</text>
+  <rect x="50" y="410" width="920" height="120" fill="#f8f9fa" stroke="#868e96" stroke-width="1" rx="8" />
+  <rect x="60" y="420" width="420" height="100" fill="#fff" stroke="#1971c2" stroke-width="1" rx="8" />
+  <text x="70" y="435.2" font-size="12" fill="#1971c2" text-anchor="start" >SELF - Fixed schedule:</text>
+  <text x="70" y="454.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY: api-sync</text>
+  <text x="70" y="467.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY_POLICY: QUEUE</text>
+  <text x="70" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT1M</text>
+  <text x="70" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP_START: SELF</text>
+  <rect x="500" y="420" width="460" height="100" fill="#fff" stroke="#e67700" stroke-width="1" rx="8" />
+  <text x="510" y="435.2" font-size="12" fill="#e67700" text-anchor="start" >PREV - Fixed gap after completion:</text>
+  <text x="510" y="454.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY: api-sync</text>
+  <text x="510" y="467.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY_POLICY: QUEUE</text>
+  <text x="510" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT1M</text>
+  <text x="510" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP_START: PREV  ← wait 1min after prev completes</text>
+  <text x="50" y="560.2" font-size="12" fill="#495057" text-anchor="start" >Use PREV when: API rate limits (1 req/min), resource cooldowns, ensuring processing gap.</text>
+  <text x="50" y="574.6" font-size="12" fill="#495057" text-anchor="start" >Use SELF when: Fixed schedule regardless of duration, parallel-safe operations.</text>
+</svg>
