@@ -1,98 +1,27 @@
 package net.maxf.pubsub.scheduler.service;
 
-import io.quarkus.test.InjectMock;
-import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusTestProfile;
-import io.quarkus.test.junit.TestProfile;
-import jakarta.inject.Inject;
-import net.maxf.pubsub.scheduler.dao.InstanceDao;
-import net.maxf.pubsub.scheduler.dao.JobDao;
-import net.maxf.pubsub.scheduler.model.JobState;
-import net.maxf.pubsub.scheduler.model.KeyPolicy;
-import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
-@QuarkusTest
-@Tag("database")
-@TestProfile(JobPreloadServiceTest.Profile.class)
+/**
+ * Unit tests for job preload JSON parsing. These are pure unit tests
+ * that don't require Quarkus or database.
+ */
 class JobPreloadServiceTest {
 
-    @Inject
-    JobStoreService jobStore;
-
-    @InjectMock
-    JobDao jobDao;
-
-    @InjectMock
-    InstanceDao instanceDao;
-
-    @BeforeEach
-    void setUp() {
-        when(instanceDao.updateHeartbeat(any(), any())).thenReturn(1);
-        when(instanceDao.findLiveInstances(any())).thenReturn(List.of("test-instance"));
-    }
-
-    @Nested
-    class SaveIfNotExistsByKeyTests {
-
-        @Test
-        void saveIfNotExistsByKey_whenInserted_returnsTrue() {
-            ScheduledJob job = createJob("test-key");
-            when(jobDao.insertIfNotExistsByKey(any())).thenReturn(true);
-
-            boolean result = jobStore.saveIfNotExistsByKey(job);
-
-            assertTrue(result);
-            verify(jobDao).insertIfNotExistsByKey(job);
-        }
-
-        @Test
-        void saveIfNotExistsByKey_whenExists_returnsFalse() {
-            ScheduledJob job = createJob("existing-key");
-            when(jobDao.insertIfNotExistsByKey(any())).thenReturn(false);
-
-            boolean result = jobStore.saveIfNotExistsByKey(job);
-
-            assertFalse(result);
-            verify(jobDao).insertIfNotExistsByKey(job);
-        }
-
-        @Test
-        void saveIfNotExistsByKey_passesJobToDao() {
-            ScheduledJob job = createJob("my-job-key");
-            job.setDestinationTopic("my-topic");
-            job.setSleepDuration("PT30M");
-            job.setSleepRepeat(0);
-            when(jobDao.insertIfNotExistsByKey(any())).thenReturn(true);
-
-            jobStore.saveIfNotExistsByKey(job);
-
-            ArgumentCaptor<ScheduledJob> captor = ArgumentCaptor.forClass(ScheduledJob.class);
-            verify(jobDao).insertIfNotExistsByKey(captor.capture());
-            ScheduledJob captured = captor.getValue();
-            assertEquals("my-job-key", captured.getJobKey());
-            assertEquals("my-topic", captured.getDestinationTopic());
-            assertEquals("PT30M", captured.getSleepDuration());
-            assertEquals(0, captured.getSleepRepeat());
-        }
-    }
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Nested
     class JobDefinitionParsingTests {
 
         @Test
-        void jobDefinition_heartbeatConfig_parsesCorrectly() {
+        void jobDefinition_heartbeatConfig_parsesCorrectly() throws Exception {
             String json = """
                 [{
                   "jobKey": "scheduler-heartbeat",
@@ -118,7 +47,7 @@ class JobPreloadServiceTest {
         }
 
         @Test
-        void jobDefinition_minimalConfig_parsesCorrectly() {
+        void jobDefinition_minimalConfig_parsesCorrectly() throws Exception {
             String json = """
                 [{
                   "jobKey": "simple-job",
@@ -138,7 +67,7 @@ class JobPreloadServiceTest {
         }
 
         @Test
-        void jobDefinition_infiniteRepeat_parsesZero() {
+        void jobDefinition_infiniteRepeat_parsesZero() throws Exception {
             String json = """
                 [{
                   "jobKey": "infinite-job",
@@ -154,7 +83,7 @@ class JobPreloadServiceTest {
         }
 
         @Test
-        void jobDefinition_finiteRepeat_parsesCount() {
+        void jobDefinition_finiteRepeat_parsesCount() throws Exception {
             String json = """
                 [{
                   "jobKey": "finite-job",
@@ -169,41 +98,45 @@ class JobPreloadServiceTest {
             assertEquals(10, def.sleepRepeat());
         }
 
-        private JobPreloadService.JobDefinition parseFirstDefinition(String json) {
-            try {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                java.util.List<JobPreloadService.JobDefinition> defs = mapper.readValue(json,
-                    new com.fasterxml.jackson.core.type.TypeReference<>() {});
-                return defs.get(0);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        @Test
+        void jobDefinition_cronJob_parsesCorrectly() throws Exception {
+            String json = """
+                [{
+                  "jobKey": "cron-job",
+                  "destination": "topic",
+                  "sleepDuration": "PT1H",
+                  "sleepRepeat": 0,
+                  "headers": {"SCHEDULER_CRON": "0 0 * * *"}
+                }]
+                """;
+
+            JobPreloadService.JobDefinition def = parseFirstDefinition(json);
+
+            assertEquals("cron-job", def.jobKey());
+            assertEquals("0 0 * * *", def.headers().get("SCHEDULER_CRON"));
         }
-    }
 
-    private ScheduledJob createJob(String jobKey) {
-        ScheduledJob job = new ScheduledJob();
-        job.setJobKey(jobKey);
-        job.setDestinationTopic("test-topic");
-        job.setKeyPolicy(KeyPolicy.SKIP);
-        job.setState(JobState.PENDING);
-        return job;
-    }
+        @Test
+        void jobDefinition_multipleJobs_parsesAll() throws Exception {
+            String json = """
+                [
+                  {"jobKey": "job1", "destination": "topic1"},
+                  {"jobKey": "job2", "destination": "topic2"},
+                  {"jobKey": "job3", "destination": "topic3"}
+                ]
+                """;
 
-    public static class Profile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            return Map.of(
-                "quarkus.http.test-port", "0",
-                "quarkus.datasource.db-kind", "postgresql",
-                "quarkus.datasource.jdbc.url", "jdbc:postgresql://localhost:5433/scheduler",
-                "quarkus.datasource.username", "scheduler",
-                "quarkus.datasource.password", "scheduler",
-                "quarkus.datasource.devservices.enabled", "false",
-                "scheduler.instance-id", "test-instance",
-                "scheduler.heartbeat.interval-seconds", "30",
-                "scheduler.heartbeat.stale-threshold-seconds", "120"
-            );
+            List<JobPreloadService.JobDefinition> defs = mapper.readValue(json, new TypeReference<>() {});
+
+            assertEquals(3, defs.size());
+            assertEquals("job1", defs.get(0).jobKey());
+            assertEquals("job2", defs.get(1).jobKey());
+            assertEquals("job3", defs.get(2).jobKey());
+        }
+
+        private JobPreloadService.JobDefinition parseFirstDefinition(String json) throws Exception {
+            List<JobPreloadService.JobDefinition> defs = mapper.readValue(json, new TypeReference<>() {});
+            return defs.get(0);
         }
     }
 }

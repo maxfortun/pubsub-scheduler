@@ -244,21 +244,4 @@ class JobQueueServiceTest {
             job.setSleepRepeat(job.getSleepRepeat() - 1);
         }
     }
-
-    public static class Profile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            return Map.of(
-                "quarkus.http.test-port", "0",
-                "quarkus.datasource.db-kind", "postgresql",
-                "quarkus.datasource.jdbc.url", "jdbc:postgresql://localhost:5433/scheduler",
-                "quarkus.datasource.username", "scheduler",
-                "quarkus.datasource.password", "scheduler",
-                "quarkus.datasource.devservices.enabled", "false",
-                "scheduler.instance-id", "test-instance",
-                "scheduler.heartbeat.interval-seconds", "30",
-                "scheduler.heartbeat.stale-threshold-seconds", "120"
-            );
-        }
-    }
 }
