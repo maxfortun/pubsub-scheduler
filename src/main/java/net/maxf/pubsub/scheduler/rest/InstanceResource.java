@@ -4,18 +4,23 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import net.maxf.pubsub.scheduler.service.InstanceRegistryService;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.time.Instant;
 import java.util.List;
 
 @Path("/api/instances")
 @Produces(MediaType.APPLICATION_JSON)
+@Tag(name = "Instances", description = "Scheduler instance and shard management")
 public class InstanceResource {
 
     @Inject
     InstanceRegistryService instanceRegistry;
 
     @GET
+    @Operation(summary = "List instances", description = "List all live scheduler instances and their shard assignments")
     public List<InstanceView> listInstances() {
         List<String> liveIds = instanceRegistry.getLiveInstances();
         int shardCount = liveIds.size();
@@ -38,6 +43,7 @@ public class InstanceResource {
 
     @GET
     @Path("/self")
+    @Operation(summary = "Get current instance", description = "Get information about this scheduler instance")
     public InstanceView getSelf() {
         String id = instanceRegistry.getInstanceId();
         var info = instanceRegistry.getInstanceInfo(id).orElse(null);
@@ -53,7 +59,8 @@ public class InstanceResource {
 
     @GET
     @Path("/shard")
-    public ShardInfo getShardForKey(@QueryParam("key") String key) {
+    @Operation(summary = "Get shard for key", description = "Determine which instance owns a given job key")
+    public ShardInfo getShardForKey(@Parameter(description = "Job key to lookup") @QueryParam("key") String key) {
         if (key == null || key.isBlank()) {
             throw new BadRequestException("key parameter is required");
         }

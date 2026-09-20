@@ -48,6 +48,9 @@ dependencies {
     implementation("io.quarkus:quarkus-smallrye-health")
     implementation("io.quarkus:quarkus-micrometer-registry-prometheus")
 
+    // OpenAPI / Swagger
+    implementation("io.quarkus:quarkus-smallrye-openapi")
+
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.quarkus:quarkus-junit5-mockito")
@@ -67,6 +70,21 @@ java {
 }
 
 tasks.withType<Test> {
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+}
+
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("docker")
+    }
+}
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs Docker integration tests"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("docker")
+    }
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }
 

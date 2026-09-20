@@ -222,6 +222,21 @@ docker-compose down
 docker-compose down -v
 ```
 
+### Docker Integration Tests
+
+Build and run the scheduler in Docker, then test the API endpoints:
+
+```bash
+# Run Docker integration tests (builds image, starts containers, runs tests)
+./gradlew integrationTest
+
+# This will:
+# 1. Build the Docker image
+# 2. Start PostgreSQL, Kafka, and Scheduler containers
+# 3. Run API endpoint tests
+# 4. Clean up containers
+```
+
 ## Usage
 
 Publish a message to `scheduler.in` with `SCHEDULER_*` headers:
@@ -839,6 +854,13 @@ shard = hash(job_key ?? job_id) % live_instance_count
 hash("order-123") % 3 = 1  →  handled by instance ranked #1
 ```
 
+### API Documentation (Swagger)
+
+The scheduler includes OpenAPI/Swagger documentation:
+
+- **Swagger UI**: http://localhost:8080/swagger-ui
+- **OpenAPI spec**: http://localhost:8080/q/openapi
+
 ### Instance API
 
 ```bash
@@ -938,6 +960,61 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 ---
 
 *Interactive versions available in [`docs/diagrams/`](docs/diagrams/) — open `.excalidraw` files with [excalidraw.com](https://excalidraw.com)*
+
+## Publishing to Docker Hub
+
+The project includes a GitHub Actions workflow for automated Docker image publishing.
+
+### Automatic Publishing
+
+Images are automatically built and pushed on:
+- Push to `main` branch → tagged as `latest`
+- Git tags matching `v*` → tagged with version (e.g., `v1.0.0` → `1.0.0`, `1.0`, `1`)
+- Pull requests → built but not pushed
+
+### Setup Requirements
+
+Configure these secrets in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub access token (not password) |
+
+To create a Docker Hub access token:
+1. Log in to [Docker Hub](https://hub.docker.com)
+2. Go to Account Settings → Security → Access Tokens
+3. Create a new token with Read/Write permissions
+
+### Manual Publishing
+
+```bash
+# Build locally
+./gradlew build -x test
+docker build -t maxfortun/pubsub-scheduler:latest .
+
+# Push to Docker Hub
+docker login
+docker push maxfortun/pubsub-scheduler:latest
+
+# Build and push multi-arch (requires buildx)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t maxfortun/pubsub-scheduler:latest \
+  --push .
+```
+
+### Triggering a Release
+
+```bash
+# Tag a release
+git tag v1.0.0
+git push origin v1.0.0
+
+# This triggers the workflow and publishes:
+# - maxfortun/pubsub-scheduler:1.0.0
+# - maxfortun/pubsub-scheduler:1.0
+# - maxfortun/pubsub-scheduler:1
+```
 
 ## License
 
