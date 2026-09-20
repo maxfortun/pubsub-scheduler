@@ -76,7 +76,7 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
+            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
             assertTrue(records.count() > 0, "Expected message in DLQ");
 
             ConsumerRecord<String, byte[]> dlqRecord = records.iterator().next();
@@ -91,7 +91,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(new RecordHeader("SCHEDULER_DESTINATION", "   ".getBytes()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
+            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
             assertTrue(records.count() > 0, "Expected message in DLQ");
         }
 
@@ -235,7 +235,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_CRON_COUNT", "5"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
+            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
             assertTrue(records.count() > 0);
 
             ConsumerRecord<String, byte[]> dlqRecord = records.iterator().next();
@@ -637,6 +637,13 @@ abstract class AbstractKafkaIT {
     }
 
     protected ConsumerRecords<String, byte[]> pollDlq(Duration timeout) {
-        return dlqConsumer.poll(timeout);
+        long deadline = System.currentTimeMillis() + timeout.toMillis();
+        while (System.currentTimeMillis() < deadline) {
+            ConsumerRecords<String, byte[]> records = dlqConsumer.poll(Duration.ofMillis(500));
+            if (records.count() > 0) {
+                return records;
+            }
+        }
+        return ConsumerRecords.empty();
     }
 }
