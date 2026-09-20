@@ -35,7 +35,7 @@ URL for them above, as well as copies of any plain-text lines
 beginning with `Required Notice:` that the licensor provided
 with the software.  For example:
 
-> Required Notice: Copyright Max Fortun (https://github.com/maxfortun/kafka-scheduler)
+> Required Notice: Copyright Max Fortun (https://github.com/maxfortun/pubsub-scheduler)
 
 ## Changes and New Works License
 

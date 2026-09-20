@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "kafka-scheduler"
+rootProject.name = "pubsub-scheduler"

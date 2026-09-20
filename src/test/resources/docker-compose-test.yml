@@ -2,7 +2,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     hostname: kafka
-    container_name: kafka-scheduler-test
+    container_name: pubsub-scheduler-test
     ports:
       - "9092:9092"
       - "29092:29092"
