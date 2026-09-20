@@ -28,13 +28,15 @@ public class JobResource {
     int maxLimit;
 
     @GET
-    @Operation(summary = "List jobs", description = "List scheduled jobs with optional filters")
-    public List<ScheduledJob> listJobs(
+    @Operation(summary = "List jobs", description = "List scheduled jobs with pagination")
+    public PagedResult<ScheduledJob> listJobs(
             @Parameter(description = "Filter by job state") @QueryParam("state") JobState state,
             @Parameter(description = "Filter by job key") @QueryParam("key") String jobKey,
-            @Parameter(description = "Maximum results") @QueryParam("limit") @DefaultValue("100") int limit) {
+            @Parameter(description = "Number of results to skip") @QueryParam("offset") @DefaultValue("0") int offset,
+            @Parameter(description = "Maximum results per page") @QueryParam("limit") @DefaultValue("100") int limit) {
+        int effectiveOffset = Math.max(0, offset);
         int effectiveLimit = Math.min(Math.max(1, limit), maxLimit);
-        return jobStore.findJobs(state, jobKey, effectiveLimit);
+        return jobStore.findJobsPaged(state, jobKey, effectiveOffset, effectiveLimit);
     }
 
     @GET
@@ -76,4 +78,16 @@ public class JobResource {
             long complete,
             long failed
     ) {}
+
+    public record PagedResult<T>(
+            List<T> items,
+            int offset,
+            int limit,
+            long total,
+            boolean hasMore
+    ) {
+        public static <T> PagedResult<T> of(List<T> items, int offset, int limit, long total) {
+            return new PagedResult<>(items, offset, limit, total, offset + items.size() < total);
+        }
+    }
 }
