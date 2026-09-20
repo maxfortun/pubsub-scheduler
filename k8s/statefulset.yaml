@@ -26,17 +26,27 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+          env:
+            # JVM will use container limits via -XX:+UseContainerSupport (default in image)
+            # Override heap for production workloads (default: 512m)
+            - name: JAVA_OPTS_APPEND
+              value: "-Xms512m -Xmx768m"
           envFrom:
             - configMapRef:
                 name: pubsub-scheduler-config
             - secretRef:
                 name: pubsub-scheduler-db
+          # Resource requirements:
+          # - Heap: 768MB (JAVA_OPTS_APPEND)
+          # - Metaspace: 128MB (default in image)
+          # - Native/overhead: ~150MB
+          # Total: ~1GB needed
           resources:
             requests:
-              memory: "512Mi"
+              memory: "768Mi"
               cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "1280Mi"
               cpu: "1000m"
           livenessProbe:
             httpGet:

@@ -165,6 +165,16 @@ services:
       - SCHEDULER_ADVISORY=kafka:scheduler.advisory
       - SCHEDULER_DLQ=kafka:scheduler.dlq
       - SCHEDULER_ADVISORY_DLQ=kafka:scheduler.advisory.dlq
+      # Override JVM settings for larger deployments:
+      # - JAVA_OPTS_APPEND=-Xmx1g -Xms512m
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     depends_on:
       cockroachdb-init:
         condition: service_completed_successfully

@@ -71,6 +71,8 @@ java {
 
 tasks.withType<Test> {
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+    maxHeapSize = "2g"
+    jvmArgs("-XX:+UseG1GC")
 }
 
 tasks.test {
@@ -95,6 +97,9 @@ tasks.register<Test>("databaseTest") {
         includeTags("database")
     }
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+    // Database tests spawn multiple Quarkus instances - need more memory and fresh JVMs
+    maxHeapSize = "3g"
+    forkEvery = 1
 }
 
 tasks.withType<JavaCompile> {

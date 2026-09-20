@@ -43,8 +43,24 @@ COPY --from=builder /app/build/quarkus-app/*.jar /app/
 COPY --from=builder /app/build/quarkus-app/app/ /app/app/
 COPY --from=builder /app/build/quarkus-app/quarkus/ /app/quarkus/
 
-ENV JAVA_OPTS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+# JVM memory settings - tuned for Quarkus + Camel + Kafka
+# Heap: 512MB default, configurable via JAVA_OPTS_APPEND
+# MetaSpace: 128MB for Quarkus/Camel class loading
+# Container-aware: uses cgroup limits when available
+ENV JAVA_OPTS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -XX:InitialRAMPercentage=50.0 \
+    -Xms256m \
+    -Xmx512m \
+    -XX:MaxMetaspaceSize=128m"
+
+# Allow additional JVM options via environment
+ENV JAVA_OPTS_APPEND=""
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", "-jar", "/app/quarkus-run.jar"]
+# Use shell form to allow variable expansion
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS $JAVA_OPTS_APPEND -jar /app/quarkus-run.jar"]

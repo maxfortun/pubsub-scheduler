@@ -686,6 +686,56 @@ The catch-up scan queries the database for PENDING jobs that belong to this shar
 
 In replicated mode, catch-up is automatically disabled (not needed).
 
+### Resource Requirements
+
+PubSub Scheduler is a JVM application built on Quarkus and Apache Camel. Resource requirements depend on workload.
+
+#### Memory Footprint
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| JVM Heap | 512MB default | Configurable via `JAVA_OPTS_APPEND` |
+| Metaspace | 128MB | Quarkus/Camel class loading |
+| Native/Overhead | ~150MB | JVM internals, buffers, threads |
+| **Total** | **~800MB** | Minimum recommended |
+
+#### Container Resource Recommendations
+
+| Workload | Memory Request | Memory Limit | CPU Request | CPU Limit |
+|----------|----------------|--------------|-------------|-----------|
+| Development | 512Mi | 768Mi | 100m | 500m |
+| Production (light) | 768Mi | 1Gi | 250m | 1000m |
+| Production (heavy) | 1Gi | 1.5Gi | 500m | 2000m |
+
+#### JVM Tuning
+
+The Docker image includes container-aware JVM settings. Override via environment:
+
+```bash
+# Increase heap for high-volume workloads
+JAVA_OPTS_APPEND="-Xms512m -Xmx1g"
+
+# Enable JVM diagnostics
+JAVA_OPTS_APPEND="-Xms512m -Xmx1g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
+```
+
+Default JVM settings in the image:
+- `-XX:+UseG1GC` — G1 garbage collector (low pause times)
+- `-XX:+UseContainerSupport` — Respect container memory limits
+- `-XX:MaxRAMPercentage=75.0` — Use up to 75% of container memory for heap
+- `-Xms256m -Xmx512m` — Default heap (256MB initial, 512MB max)
+- `-XX:MaxMetaspaceSize=128m` — Metaspace limit
+
+#### Test Resource Requirements
+
+Database integration tests run multiple Quarkus instances and require more memory:
+
+```bash
+# Run tests with increased memory (configured in build.gradle.kts)
+./gradlew databaseTest  # Uses 3GB heap, forks per test class
+./gradlew test          # Uses 2GB heap
+```
+
 ### Secrets Management
 
 PubSub Scheduler supports multiple secret providers for secure credential management. Example configurations are in `src/main/resources/examples/`.
