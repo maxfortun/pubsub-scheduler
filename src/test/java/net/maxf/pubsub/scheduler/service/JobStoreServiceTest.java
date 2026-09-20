@@ -3,6 +3,7 @@ package net.maxf.pubsub.scheduler.service;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import net.maxf.pubsub.scheduler.dao.InstanceDao;
 import net.maxf.pubsub.scheduler.dao.JobDao;
 import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
@@ -19,10 +20,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Tag;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
 
 @QuarkusTest
+@Tag("database")
 class JobStoreServiceTest {
 
     @Inject
@@ -40,9 +45,14 @@ class JobStoreServiceTest {
     @InjectMock
     InstanceRegistryService instanceRegistry;
 
+    @InjectMock
+    InstanceDao instanceDao;
+
     @BeforeEach
     void setUp() {
         when(instanceRegistry.ownsKey(anyString())).thenReturn(true);
+        doNothing().when(instanceDao).upsert(anyString(), any(), any());
+        when(instanceDao.updateHeartbeat(anyString(), any())).thenReturn(1);
     }
 
     @Nested

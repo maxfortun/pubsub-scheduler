@@ -104,10 +104,25 @@ docker-compose down
 
 ### Unit Tests
 
-Unit tests run without external dependencies:
+Unit tests run without external dependencies (uses H2 in-memory database):
 
 ```bash
 ./gradlew test
+```
+
+### Database Tests
+
+Database-specific tests verify DAO implementations against real databases:
+
+```bash
+# Start test containers first
+docker compose -f src/test/resources/docker-compose-test.yml up -d
+
+# Run database tests
+./gradlew databaseTest
+
+# Stop containers
+docker compose -f src/test/resources/docker-compose-test.yml down
 ```
 
 ### Integration Tests

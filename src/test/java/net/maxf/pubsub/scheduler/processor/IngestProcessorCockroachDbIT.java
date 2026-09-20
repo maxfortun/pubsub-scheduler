@@ -3,12 +3,14 @@ package net.maxf.pubsub.scheduler.processor;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
+import org.junit.jupiter.api.Tag;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @QuarkusTest
 @TestProfile(IngestProcessorCockroachDbIT.CockroachDbTestProfile.class)
+@Tag("database")
 class IngestProcessorCockroachDbIT extends AbstractKafkaIT {
 
     public static class CockroachDbTestProfile implements QuarkusTestProfile {

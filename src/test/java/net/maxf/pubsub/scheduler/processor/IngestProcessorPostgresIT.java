@@ -3,12 +3,14 @@ package net.maxf.pubsub.scheduler.processor;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
+import org.junit.jupiter.api.Tag;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @QuarkusTest
 @TestProfile(IngestProcessorPostgresIT.PostgresTestProfile.class)
+@Tag("database")
 class IngestProcessorPostgresIT extends AbstractKafkaIT {
 
     public static class PostgresTestProfile implements QuarkusTestProfile {

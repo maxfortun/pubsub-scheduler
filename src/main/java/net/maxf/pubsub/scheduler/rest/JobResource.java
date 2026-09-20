@@ -7,6 +7,7 @@ import jakarta.ws.rs.core.Response;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
@@ -23,13 +24,17 @@ public class JobResource {
     @Inject
     JobStoreService jobStore;
 
+    @ConfigProperty(name = "scheduler.api.max-limit", defaultValue = "1000")
+    int maxLimit;
+
     @GET
     @Operation(summary = "List jobs", description = "List scheduled jobs with optional filters")
     public List<ScheduledJob> listJobs(
             @Parameter(description = "Filter by job state") @QueryParam("state") JobState state,
             @Parameter(description = "Filter by job key") @QueryParam("key") String jobKey,
             @Parameter(description = "Maximum results") @QueryParam("limit") @DefaultValue("100") int limit) {
-        return jobStore.findJobs(state, jobKey, limit);
+        int effectiveLimit = Math.min(Math.max(1, limit), maxLimit);
+        return jobStore.findJobs(state, jobKey, effectiveLimit);
     }
 
     @GET

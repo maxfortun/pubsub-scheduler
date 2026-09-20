@@ -3,12 +3,14 @@ package net.maxf.pubsub.scheduler.processor;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
+import org.junit.jupiter.api.Tag;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @QuarkusTest
 @TestProfile(IngestProcessorMySqlIT.MySqlTestProfile.class)
+@Tag("database")
 class IngestProcessorMySqlIT extends AbstractKafkaIT {
 
     public static class MySqlTestProfile implements QuarkusTestProfile {

@@ -75,7 +75,7 @@ tasks.withType<Test> {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("docker")
+        excludeTags("docker", "database")
     }
 }
 
@@ -84,6 +84,15 @@ tasks.register<Test>("integrationTest") {
     group = "verification"
     useJUnitPlatform {
         includeTags("docker")
+    }
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+}
+
+tasks.register<Test>("databaseTest") {
+    description = "Runs database-specific tests (requires running DB containers)"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("database")
     }
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }
