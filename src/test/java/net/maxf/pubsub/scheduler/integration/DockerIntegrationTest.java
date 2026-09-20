@@ -84,18 +84,131 @@ class DockerIntegrationTest {
 
     @Test
     @Order(4)
-    void listJobsReturnsEmptyList() {
+    void openApiSpecContainsPaginationDocs() {
+        given()
+            .when()
+                .get("/q/openapi")
+            .then()
+                .statusCode(200)
+                .body(containsString("offset"))
+                .body(containsString("limit"))
+                .body(containsString("hasMore"))
+                .body(containsString("PagedResult"));
+    }
+
+    // ==================== Jobs API Tests ====================
+
+    @Test
+    @Order(10)
+    void listJobs_returnsPagedResult() {
         given()
             .when()
                 .get("/api/jobs")
             .then()
                 .statusCode(200)
-                .body("$", hasSize(0));
+                .contentType(ContentType.JSON)
+                .body("items", hasSize(0))
+                .body("offset", equalTo(0))
+                .body("limit", equalTo(100))
+                .body("total", equalTo(0))
+                .body("hasMore", equalTo(false));
     }
 
     @Test
-    @Order(5)
-    void getJobStatsReturnsZeroCounts() {
+    @Order(11)
+    void listJobs_withCustomPagination() {
+        given()
+            .queryParam("offset", 0)
+            .queryParam("limit", 50)
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("offset", equalTo(0))
+                .body("limit", equalTo(50))
+                .body("items", notNullValue());
+    }
+
+    @Test
+    @Order(12)
+    void listJobs_negativeOffsetClampedToZero() {
+        given()
+            .queryParam("offset", -10)
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("offset", equalTo(0));
+    }
+
+    @Test
+    @Order(13)
+    void listJobs_zeroLimitClampedToOne() {
+        given()
+            .queryParam("limit", 0)
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("limit", equalTo(1));
+    }
+
+    @Test
+    @Order(14)
+    void listJobs_exceedingLimitCapped() {
+        given()
+            .queryParam("limit", 5000)
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("limit", equalTo(1000));
+    }
+
+    @Test
+    @Order(15)
+    void listJobs_withStateFilter() {
+        given()
+            .queryParam("state", "PENDING")
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("items", notNullValue());
+    }
+
+    @Test
+    @Order(16)
+    void listJobs_withKeyFilter() {
+        given()
+            .queryParam("key", "some-job-key")
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("items", hasSize(0));
+    }
+
+    @Test
+    @Order(17)
+    void listJobs_combinedFilters() {
+        given()
+            .queryParam("state", "PENDING")
+            .queryParam("key", "test-key")
+            .queryParam("offset", 0)
+            .queryParam("limit", 25)
+            .when()
+                .get("/api/jobs")
+            .then()
+                .statusCode(200)
+                .body("offset", equalTo(0))
+                .body("limit", equalTo(25))
+                .body("items", notNullValue());
+    }
+
+    @Test
+    @Order(20)
+    void getJobStats_returnsZeroCounts() {
         given()
             .when()
                 .get("/api/jobs/stats")
@@ -103,12 +216,37 @@ class DockerIntegrationTest {
                 .statusCode(200)
                 .body("pending", equalTo(0))
                 .body("waiting", equalTo(0))
+                .body("acquired", equalTo(0))
+                .body("firing", equalTo(0))
+                .body("complete", equalTo(0))
                 .body("failed", equalTo(0));
     }
 
     @Test
-    @Order(6)
-    void listInstancesReturnsCurrentInstance() {
+    @Order(21)
+    void getNonExistentJob_returns404() {
+        given()
+            .when()
+                .get("/api/jobs/00000000-0000-0000-0000-000000000000")
+            .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @Order(22)
+    void cancelNonExistentJob_returns404() {
+        given()
+            .when()
+                .delete("/api/jobs/00000000-0000-0000-0000-000000000000")
+            .then()
+                .statusCode(404);
+    }
+
+    // ==================== Instances API Tests ====================
+
+    @Test
+    @Order(30)
+    void listInstances_returnsCurrentInstance() {
         given()
             .when()
                 .get("/api/instances")
@@ -119,8 +257,8 @@ class DockerIntegrationTest {
     }
 
     @Test
-    @Order(7)
-    void getSelfInstanceReturnsInfo() {
+    @Order(31)
+    void getSelfInstance_returnsInfo() {
         given()
             .when()
                 .get("/api/instances/self")
@@ -132,8 +270,8 @@ class DockerIntegrationTest {
     }
 
     @Test
-    @Order(8)
-    void getShardForKeyReturnsOwner() {
+    @Order(32)
+    void getShardForKey_returnsOwner() {
         given()
             .queryParam("key", "test-key-123")
             .when()
@@ -145,19 +283,11 @@ class DockerIntegrationTest {
                 .body("owner", notNullValue());
     }
 
-    @Test
-    @Order(9)
-    void getNonExistentJobReturns404() {
-        given()
-            .when()
-                .get("/api/jobs/00000000-0000-0000-0000-000000000000")
-            .then()
-                .statusCode(404);
-    }
+    // ==================== Infrastructure Tests ====================
 
     @Test
-    @Order(10)
-    void prometheusMetricsAreExposed() {
+    @Order(40)
+    void prometheusMetrics_areExposed() {
         given()
             .when()
                 .get("/q/metrics")
@@ -165,6 +295,30 @@ class DockerIntegrationTest {
                 .statusCode(200)
                 .body(containsString("jvm_memory"));
     }
+
+    @Test
+    @Order(41)
+    void livenessEndpoint_returnsUp() {
+        given()
+            .when()
+                .get("/q/health/live")
+            .then()
+                .statusCode(200)
+                .body("status", equalTo("UP"));
+    }
+
+    @Test
+    @Order(42)
+    void readinessEndpoint_returnsUp() {
+        given()
+            .when()
+                .get("/q/health/ready")
+            .then()
+                .statusCode(200)
+                .body("status", equalTo("UP"));
+    }
+
+    // ==================== Helper Methods ====================
 
     private static void waitForHealth(Duration timeout) throws InterruptedException {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
