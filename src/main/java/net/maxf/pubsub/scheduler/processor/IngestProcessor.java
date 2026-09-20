@@ -4,6 +4,8 @@ import net.maxf.pubsub.scheduler.model.SleepStart;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
+import net.maxf.pubsub.scheduler.transform.TransformException;
+import net.maxf.pubsub.scheduler.transform.TransformService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -40,6 +42,9 @@ public class IngestProcessor implements Processor {
 
     @Inject
     JobStoreService jobStore;
+
+    @Inject
+    TransformService transformService;
 
     @ConfigProperty(name = "scheduler.default-retries", defaultValue = "3")
     int defaultRetries;
@@ -145,6 +150,13 @@ public class IngestProcessor implements Processor {
         LOG.infof("Ingested job %s: destination=%s, fireAt=%s, key=%s, mode=%s",
                 job.getId(), job.getDestinationTopic(), job.getFireAt(),
                 job.getJobKey(), job.getKeyPolicy());
+
+        // Apply pre-scheduling transforms (e.g., claim check externalization)
+        try {
+            job = transformService.applyPreSchedulingTransforms(job);
+        } catch (TransformException e) {
+            throw new RuntimeException("Pre-scheduling transform failed for job " + job.getId(), e);
+        }
 
         // Handle according to key mode
         jobStore.handleIncomingJob(job);

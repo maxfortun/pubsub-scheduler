@@ -1,7 +1,10 @@
 package net.maxf.pubsub.scheduler.processor;
 
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.transform.TransformException;
+import net.maxf.pubsub.scheduler.transform.TransformService;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -15,9 +18,19 @@ public class FireProcessor implements Processor {
 
     private static final Logger LOG = Logger.getLogger(FireProcessor.class);
 
+    @Inject
+    TransformService transformService;
+
     @Override
     public void process(Exchange exchange) throws Exception {
         ScheduledJob job = exchange.getIn().getBody(ScheduledJob.class);
+
+        // Apply post-scheduling transforms (e.g., claim check retrieval)
+        try {
+            job = transformService.applyPostSchedulingTransforms(job);
+        } catch (TransformException e) {
+            throw new RuntimeException("Post-scheduling transform failed for job " + job.getId(), e);
+        }
 
         // Clear all existing headers
         exchange.getIn().getHeaders().clear();

@@ -336,6 +336,83 @@ Published to `scheduler.advisory` (metadata only, no payload):
 | `JOB_FAILED` | Failed after retries |
 | `JOB_CASCADE_FAILED` | Failed due to predecessor failure |
 
+## Message Transforms
+
+PubSub Scheduler supports pluggable message transformers that run before storage (pre-scheduling) and before firing (post-scheduling). This enables patterns like:
+
+- **Claim check**: Externalize large payloads to blob storage
+- **Compression**: Compress before storage, decompress before firing
+- **Encryption**: Encrypt at rest, decrypt before delivery
+- **Format conversion**: Transform payload format between systems
+
+### How It Works
+
+1. **Pre-scheduling transform**: After a message arrives but before it's stored in the database, the payload is POSTed to the configured URL. The response replaces the payload.
+
+2. **Post-scheduling transform**: After a job is retrieved from the database but before it's fired to the destination, the payload is POSTed to the configured URL. The response is what gets delivered.
+
+### Configuration
+
+```properties
+# Pre-scheduling transform (before storage)
+scheduler.transform.pre.type=http
+scheduler.transform.pre.http.url=https://transform.example.com/pre
+scheduler.transform.pre.http.method=POST
+scheduler.transform.pre.http.threshold-bytes=1048576
+scheduler.transform.pre.http.authorization=Bearer ${SECRET_TOKEN}
+scheduler.transform.pre.http.connect-timeout-ms=5000
+scheduler.transform.pre.http.read-timeout-ms=30000
+
+# Post-scheduling transform (before fire)
+scheduler.transform.post.type=http
+scheduler.transform.post.http.url=https://transform.example.com/post
+scheduler.transform.post.http.method=POST
+scheduler.transform.post.http.authorization=Bearer ${SECRET_TOKEN}
+```
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `type` | Transformer type (`http` or empty to disable) | empty |
+| `http.url` | URL to POST payload to | required |
+| `http.method` | HTTP method (`POST`, `PUT`, `GET`) | `POST` |
+| `http.threshold-bytes` | Min payload size to trigger transform (0 = always) | `0` |
+| `http.authorization` | Authorization header value | none |
+| `http.connect-timeout-ms` | Connection timeout | `5000` |
+| `http.read-timeout-ms` | Read timeout | `30000` |
+
+### Example: Claim Check with S3
+
+Use an HTTP service that stores payloads in S3 and returns a reference:
+
+```properties
+# Store large payloads (>1MB) in S3, keep reference in DB
+scheduler.transform.pre.type=http
+scheduler.transform.pre.http.url=https://api.internal/claim-check/store
+scheduler.transform.pre.http.threshold-bytes=1048576
+
+# Retrieve payload from S3 before firing
+scheduler.transform.post.type=http
+scheduler.transform.post.http.url=https://api.internal/claim-check/retrieve
+```
+
+The transform services handle all the logic — the scheduler just passes payloads through.
+
+### Example: Compression
+
+```properties
+# Compress before storage
+scheduler.transform.pre.type=http
+scheduler.transform.pre.http.url=https://api.internal/compress
+
+# Decompress before firing
+scheduler.transform.post.type=http
+scheduler.transform.post.http.url=https://api.internal/decompress
+```
+
+### Adding Custom Transform Types
+
+To add a new transform type (e.g., `s3`, `redis`), implement `MessageTransformer` and add a case to `TransformProducer.createTransformer()`.
+
 ## Examples
 
 ### One-shot delayed message
