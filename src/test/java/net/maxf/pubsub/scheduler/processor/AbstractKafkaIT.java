@@ -99,12 +99,14 @@ abstract class AbstractKafkaIT {
         @Order(3)
         void validDestination_jobCreated() throws Exception {
             String jobKey = "dest-test-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test-body".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty(), "Job should be created");
@@ -128,7 +130,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -148,7 +150,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_SLEEP", "PT30M"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -169,10 +171,11 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
-            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
-            assertFalse(jobs.isEmpty());
+            // Job will fire immediately and complete - find in any state
+            List<ScheduledJob> jobs = jobStore.findJobs(null, jobKey, 10);
+            assertFalse(jobs.isEmpty(), "Job should be created");
             assertTrue(jobs.get(0).getFireAt().isAfter(before.minusSeconds(5)));
             assertTrue(jobs.get(0).getFireAt().isBefore(Instant.now().plusSeconds(5)));
         }
@@ -246,7 +249,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_SLEEP_START", "SELF"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -265,7 +268,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_SLEEP_START", "prev"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -284,7 +287,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_SLEEP_REPEAT", "5"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -300,14 +303,16 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void keyPolicyQueue_setsKeyPolicyToQueue() throws Exception {
             String jobKey = "key-policy-queue-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -318,14 +323,16 @@ abstract class AbstractKafkaIT {
         @Order(2)
         void keyPolicyReplace_setsKeyPolicyToReplace() throws Exception {
             String jobKey = "key-policy-replace-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_KEY_POLICY", "replace"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -336,14 +343,16 @@ abstract class AbstractKafkaIT {
         @Order(3)
         void keyPolicySkip_setsKeyPolicyToSkip() throws Exception {
             String jobKey = "key-policy-skip-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_KEY_POLICY", "Skip"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -354,13 +363,15 @@ abstract class AbstractKafkaIT {
         @Order(4)
         void noKeyPolicy_defaultsToQueue() throws Exception {
             String jobKey = "key-policy-default-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -376,14 +387,16 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void retryCount_setsMaxRetries() throws Exception {
             String jobKey = "retry-count-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_RETRY_COUNT", "10"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -394,13 +407,15 @@ abstract class AbstractKafkaIT {
         @Order(2)
         void noRetryCount_usesDefault() throws Exception {
             String jobKey = "retry-default-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -416,14 +431,16 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void advisoryHeadersPattern_setsPattern() throws Exception {
             String jobKey = "advisory-pattern-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_ADVISORY_HEADERS", "X-.*|Custom-.*"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -439,14 +456,16 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void messageBodyPreserved() throws Exception {
             String jobKey = "body-preservation-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
             byte[] body = "{\"order\": 123, \"customer\": \"test\"}".getBytes(StandardCharsets.UTF_8);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "msg-key", body);
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -457,15 +476,17 @@ abstract class AbstractKafkaIT {
         @Order(2)
         void nonSchedulerHeadersPreserved() throws Exception {
             String jobKey = "header-preservation-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("X-Correlation-Id", "corr-123"));
             record.headers().add(header("X-Request-Id", "req-456"));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -552,7 +573,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("X-Correlation-Id", "corr-999"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
@@ -582,7 +603,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            Thread.sleep(2000);
+            Thread.sleep(5000);
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());

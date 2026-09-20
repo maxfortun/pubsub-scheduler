@@ -125,8 +125,14 @@ public class IngestProcessor implements Processor {
         // Preserve non-scheduler headers for forwarding
         Map<String, String> headers = new HashMap<>();
         for (Map.Entry<String, Object> entry : message.getHeaders().entrySet()) {
-            if (!entry.getKey().startsWith(HEADER_PREFIX) && entry.getValue() instanceof String) {
-                headers.put(entry.getKey(), (String) entry.getValue());
+            if (!entry.getKey().startsWith(HEADER_PREFIX) && !entry.getKey().startsWith("kafka.")
+                    && !entry.getKey().startsWith("camel")) {
+                Object value = entry.getValue();
+                if (value instanceof String) {
+                    headers.put(entry.getKey(), (String) value);
+                } else if (value instanceof byte[]) {
+                    headers.put(entry.getKey(), new String((byte[]) value, java.nio.charset.StandardCharsets.UTF_8));
+                }
             }
         }
         job.setHeaders(headers);

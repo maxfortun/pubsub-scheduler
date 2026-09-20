@@ -6,6 +6,7 @@ import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.rest.JobResource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -288,10 +289,10 @@ public class JobStoreService {
         return true;
     }
 
-    public net.maxf.pubsub.scheduler.rest.JobResource.JobStats getStats() {
+    public JobResource.JobStats getStats() {
         try {
             JobDao.JobStats stats = jobDao.getStats();
-            return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(
+            return new JobResource.JobStats(
                 stats.pending(),
                 stats.waiting(),
                 stats.acquired(),
@@ -301,7 +302,7 @@ public class JobStoreService {
             );
         } catch (DaoException e) {
             LOG.errorf(e, "Failed to get job stats");
-            return new net.maxf.pubsub.scheduler.rest.JobResource.JobStats(0, 0, 0, 0, 0, 0);
+            return new JobResource.JobStats(0, 0, 0, 0, 0, 0);
         }
     }
 }

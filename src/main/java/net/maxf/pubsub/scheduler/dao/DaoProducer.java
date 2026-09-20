@@ -14,6 +14,9 @@ public class DaoProducer {
     @ConfigProperty(name = "quarkus.datasource.db-kind", defaultValue = "postgresql")
     String dbKind;
 
+    @ConfigProperty(name = "scheduler.db-dialect")
+    java.util.Optional<String> dbDialect;
+
     @Inject
     @Postgres
     PostgresInstanceDao postgresInstanceDao;
@@ -41,24 +44,30 @@ public class DaoProducer {
     @Produces
     @ApplicationScoped
     public InstanceDao instanceDao() {
-        LOG.infof("Selecting InstanceDao for database type: %s", dbKind);
-        return selectByDbKind(postgresInstanceDao, mySqlInstanceDao, cockroachDbInstanceDao);
+        String dialect = getEffectiveDialect();
+        LOG.infof("Selecting InstanceDao for database dialect: %s", dialect);
+        return selectByDialect(dialect, postgresInstanceDao, mySqlInstanceDao, cockroachDbInstanceDao);
     }
 
     @Produces
     @ApplicationScoped
     public JobDao jobDao() {
-        LOG.infof("Selecting JobDao for database type: %s", dbKind);
-        return selectByDbKind(postgresJobDao, mySqlJobDao, cockroachDbJobDao);
+        String dialect = getEffectiveDialect();
+        LOG.infof("Selecting JobDao for database dialect: %s", dialect);
+        return selectByDialect(dialect, postgresJobDao, mySqlJobDao, cockroachDbJobDao);
     }
 
-    private <T> T selectByDbKind(T postgresImpl, T mySqlImpl, T cockroachDbImpl) {
-        return switch (dbKind.toLowerCase()) {
+    private String getEffectiveDialect() {
+        return dbDialect.orElse(dbKind);
+    }
+
+    private <T> T selectByDialect(String dialect, T postgresImpl, T mySqlImpl, T cockroachDbImpl) {
+        return switch (dialect.toLowerCase()) {
             case "mysql", "mariadb" -> mySqlImpl;
             case "cockroachdb", "cockroach" -> cockroachDbImpl;
             case "postgresql", "postgres", "h2" -> postgresImpl;
             default -> {
-                LOG.warnf("Unknown database type '%s', defaulting to PostgreSQL DAO", dbKind);
+                LOG.warnf("Unknown database dialect '%s', defaulting to PostgreSQL DAO", dialect);
                 yield postgresImpl;
             }
         };

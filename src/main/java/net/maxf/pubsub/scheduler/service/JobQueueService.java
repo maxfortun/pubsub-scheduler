@@ -2,6 +2,7 @@ package net.maxf.pubsub.scheduler.service;
 
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
+import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -151,7 +152,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             job.setState(JobState.FIRING);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.pubsub.scheduler.model.AdvisoryEvent.JOB_FIRING);
+            advisoryService.publish(job, AdvisoryEvent.JOB_FIRING);
 
             // Fire to destination via Camel direct endpoint
             fireToDestination(job);
@@ -159,7 +160,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             job.setState(JobState.COMPLETE);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.pubsub.scheduler.model.AdvisoryEvent.JOB_COMPLETE);
+            advisoryService.publish(job, AdvisoryEvent.JOB_COMPLETE);
 
             // Promote waiting successors
             jobStore.promoteSuccessors(job);
@@ -190,7 +191,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
                     job.getId(), job.getMaxRetries(), e.getMessage());
             job.setState(JobState.FAILED);
             jobStore.update(job);
-            advisoryService.publish(job, net.maxf.pubsub.scheduler.model.AdvisoryEvent.JOB_FAILED);
+            advisoryService.publish(job, AdvisoryEvent.JOB_FAILED);
             jobStore.cascadeFailure(job);
         }
     }

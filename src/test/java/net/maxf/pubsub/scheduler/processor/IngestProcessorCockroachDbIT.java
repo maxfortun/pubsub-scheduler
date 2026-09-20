@@ -23,10 +23,12 @@ class IngestProcessorCockroachDbIT extends AbstractKafkaIT {
             config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq");
             config.put("scheduler.consumer-group", "scheduler-cockroachdb-it-group");
             // CockroachDB (uses PostgreSQL JDBC driver)
-            config.put("quarkus.datasource.db-kind", "cockroachdb");
+            config.put("quarkus.datasource.db-kind", "postgresql");
             config.put("quarkus.datasource.jdbc.url", "jdbc:postgresql://localhost:26257/scheduler?sslmode=disable");
             config.put("quarkus.datasource.username", "root");
             config.put("quarkus.datasource.password", "");
+            // Custom property to select CockroachDB DAOs
+            config.put("scheduler.db-dialect", "cockroachdb");
             // Disable all DevServices
             config.put("quarkus.devservices.enabled", "false");
             config.put("quarkus.datasource.devservices.enabled", "false");
