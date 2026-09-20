@@ -50,6 +50,9 @@ secrets/
 *.keystore
 *.truststore
 
+# K8s secrets (use secret.yaml.example as template)
+k8s/secret.yaml
+
 # Database
 *.db
 *.sqlite

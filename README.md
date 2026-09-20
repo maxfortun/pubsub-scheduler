@@ -963,7 +963,7 @@ kubectl scale statefulset pubsub-scheduler -n pubsub-scheduler --replicas=3
 **What's included:**
 - `namespace.yaml` — dedicated namespace
 - `configmap.yaml` — non-sensitive config (Kafka brokers, topics)
-- `secret.yaml` — database credentials (customize for your cluster)
+- `secret.yaml.example` — database credentials template (copy to `secret.yaml` and customize)
 - `statefulset.yaml` — scheduler pods (no shard config needed)
 - `pdb.yaml` — pod disruption budget (min 2 available)
 - `hpa.yaml` — horizontal pod autoscaler (3-12 replicas)

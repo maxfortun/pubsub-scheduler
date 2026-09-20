@@ -6,6 +6,7 @@ namespace: pubsub-scheduler
 resources:
   - namespace.yaml
   - configmap.yaml
+  # Copy secret.yaml.example to secret.yaml and customize before deploying
   - secret.yaml
   - statefulset.yaml
   - pdb.yaml
