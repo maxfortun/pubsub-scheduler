@@ -57,7 +57,7 @@ class JobStoreServiceTest {
 
             assertEquals(JobState.PENDING, job.getState());
             verify(jobDao).insert(job);
-            verify(advisoryService).publish(job, AdvisoryEvent.JOB_SCHEDULED);
+            verify(advisoryService).publish(job, AdvisoryEvent.JOB_QUEUED);
             verify(jobQueue).enqueue(job);
         }
 
@@ -90,7 +90,7 @@ class JobStoreServiceTest {
 
             assertEquals(JobState.PENDING, job.getState());
             verify(jobDao).insert(job);
-            verify(advisoryService).publish(job, AdvisoryEvent.JOB_SCHEDULED);
+            verify(advisoryService).publish(job, AdvisoryEvent.JOB_QUEUED);
         }
 
         @Test
@@ -136,7 +136,7 @@ class JobStoreServiceTest {
             assertNull(job.getPredecessorId());
             assertEquals(0, job.getSequenceNum());
             verify(jobDao).insert(job);
-            verify(advisoryService).publish(job, AdvisoryEvent.JOB_SCHEDULED);
+            verify(advisoryService).publish(job, AdvisoryEvent.JOB_QUEUED);
         }
 
         @Test

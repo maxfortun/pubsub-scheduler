@@ -357,7 +357,7 @@ Published to `scheduler.advisory` (metadata only, no payload):
 
 | Event | When |
 |-------|------|
-| `JOB_SCHEDULED` | Job accepted and queued |
+| `JOB_QUEUED` | Job accepted and queued |
 | `JOB_WAITING` | Queued behind predecessor (QUEUE policy) |
 | `JOB_SKIPPED` | Dropped due to SKIP policy |
 | `JOB_REPLACED` | Cancelled by incoming REPLACE |

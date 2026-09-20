@@ -95,7 +95,7 @@ Published to `scheduler.advisory`, keyed by job key for partition affinity:
 
 | Event | When |
 |-------|------|
-| `JOB_SCHEDULED` | Job accepted and queued |
+| `JOB_QUEUED` | Job accepted and queued |
 | `JOB_WAITING` | Queued behind predecessor (QUEUE mode) |
 | `JOB_SKIPPED` | Dropped due to SKIP mode |
 | `JOB_REPLACED` | Cancelled by incoming REPLACE |

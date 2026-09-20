@@ -1,7 +1,7 @@
 package net.maxf.pubsub.scheduler.model;
 
 public enum AdvisoryEvent {
-    JOB_SCHEDULED,      // Job accepted and queued
+    JOB_QUEUED,         // Job accepted and queued
     JOB_WAITING,        // Queued behind predecessor (QUEUE mode)
     JOB_SKIPPED,        // Dropped due to SKIP mode
     JOB_REPLACED,       // Cancelled by incoming REPLACE

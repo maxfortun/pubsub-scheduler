@@ -109,7 +109,7 @@ public class JobStoreService {
         if (job.getJobKey() == null) {
             job.setState(JobState.PENDING);
             save(job);
-            advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
+            advisoryService.publish(job, AdvisoryEvent.JOB_QUEUED);
             if (shouldEnqueueLocally(job)) {
                 jobQueue.enqueue(job);
             }
@@ -127,7 +127,7 @@ public class JobStoreService {
                 }
                 job.setState(JobState.PENDING);
                 save(job);
-                advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
+                advisoryService.publish(job, AdvisoryEvent.JOB_QUEUED);
                 if (shouldEnqueueLocally(job)) {
                     jobQueue.enqueue(job);
                 }
@@ -142,7 +142,7 @@ public class JobStoreService {
                 }
                 job.setState(JobState.PENDING);
                 save(job);
-                advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
+                advisoryService.publish(job, AdvisoryEvent.JOB_QUEUED);
                 if (shouldEnqueueLocally(job)) {
                     jobQueue.enqueue(job);
                 }
@@ -151,7 +151,7 @@ public class JobStoreService {
                 if (existingJobs.isEmpty()) {
                     job.setState(JobState.PENDING);
                     save(job);
-                    advisoryService.publish(job, AdvisoryEvent.JOB_SCHEDULED);
+                    advisoryService.publish(job, AdvisoryEvent.JOB_QUEUED);
                     if (shouldEnqueueLocally(job)) {
                         jobQueue.enqueue(job);
                     }
