@@ -51,6 +51,7 @@ services:
       SCHEDULER_ADVISORY: kafka:scheduler.advisory
       SCHEDULER_DLQ: kafka:scheduler.dlq
       SCHEDULER_ADVISORY_DLQ: kafka:scheduler.advisory.dlq
+      SCHEDULER_CONSUMER_GROUP: scheduler-integration-test
     depends_on:
       postgres:
         condition: service_healthy
