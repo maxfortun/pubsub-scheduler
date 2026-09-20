@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -171,12 +172,15 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
             fireToDestination(job);
 
-            job.setState(JobState.COMPLETE);
-            job.setUpdatedAt(Instant.now());
-            jobStore.update(job);
-            advisoryService.publish(job, AdvisoryEvent.JOB_DONE);
-
-            jobStore.promoteSuccessors(job);
+            if (shouldRepeat(job)) {
+                scheduleNextRepetition(job);
+            } else {
+                job.setState(JobState.COMPLETE);
+                job.setUpdatedAt(Instant.now());
+                jobStore.update(job);
+                advisoryService.publish(job, AdvisoryEvent.JOB_DONE);
+                jobStore.promoteSuccessors(job);
+            }
 
         } catch (RuntimeException e) {
             handleFireFailure(job, e);
@@ -185,6 +189,36 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     private void fireToDestination(ScheduledJob job) {
         LOG.infof("Firing job %s to %s", job.getId(), job.getDestinationTopic());
+    }
+
+    private boolean shouldRepeat(ScheduledJob job) {
+        if (job.getSleepDuration() == null) {
+            return false;
+        }
+        int repeat = job.getSleepRepeat();
+        // 0 or negative means infinite, positive means that many times
+        return repeat <= 0 || repeat > 1;
+    }
+
+    private void scheduleNextRepetition(ScheduledJob job) {
+        Duration sleepDuration = Duration.parse(job.getSleepDuration());
+        Instant nextFire = Instant.now().plus(sleepDuration);
+
+        job.setFireAt(nextFire);
+        job.setEffectiveFireAt(nextFire);
+        job.setState(JobState.PENDING);
+        job.setUpdatedAt(Instant.now());
+        job.setRetryCount(0);
+
+        // Decrement repeat count if not infinite
+        if (job.getSleepRepeat() > 0) {
+            job.setSleepRepeat(job.getSleepRepeat() - 1);
+        }
+
+        jobStore.update(job);
+        advisoryService.publish(job, AdvisoryEvent.JOB_DONE);
+        enqueue(job);
+        LOG.infof("Scheduled next repetition of job %s at %s", job.getId(), nextFire);
     }
 
     private void handleFireFailure(ScheduledJob job, Exception e) {

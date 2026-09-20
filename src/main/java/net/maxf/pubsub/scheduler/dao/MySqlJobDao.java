@@ -55,6 +55,49 @@ public class MySqlJobDao implements JobDao {
     }
 
     @Override
+    public boolean insertIfNotExistsByKey(ScheduledJob job) {
+        if (job.getJobKey() == null) {
+            throw new IllegalArgumentException("jobKey is required for insertIfNotExistsByKey");
+        }
+
+        String sql = """
+            INSERT INTO scheduled_jobs (
+                id, job_key, key_policy, sleep_start, sleep_duration, sleep_repeat,
+                cron_expression, cron_end, cron_max_count, cron_fire_count,
+                fire_at, effective_fire_at, arrived_at,
+                destination_topic, message_key, message_value, headers, advisory_headers_pattern,
+                state, max_retries, retry_count, version,
+                predecessor_id, sequence_num,
+                acquired_by, acquired_at, created_at, updated_at, last_error
+            )
+            SELECT
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?,
+                ?, ?,
+                ?, ?, ?, ?, ?
+            FROM DUAL
+            WHERE NOT EXISTS (
+                SELECT 1 FROM scheduled_jobs
+                WHERE job_key = ? AND state IN ('PENDING', 'WAITING', 'ACQUIRED', 'FIRING')
+            )
+            """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            setJobParameters(ps, job);
+            ps.setString(30, job.getJobKey());
+            int rows = ps.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            LOG.errorf(e, "Failed to insertIfNotExistsByKey job %s", job.getId());
+            throw new DaoException("Failed to insert job", e);
+        }
+    }
+
+    @Override
     public boolean update(ScheduledJob job) {
         String sql = """
             UPDATE scheduled_jobs SET

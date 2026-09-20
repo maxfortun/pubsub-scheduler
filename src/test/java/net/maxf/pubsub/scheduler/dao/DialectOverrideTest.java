@@ -1,5 +1,6 @@
 package net.maxf.pubsub.scheduler.dao;
 
+import io.quarkus.arc.ClientProxy;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -26,20 +27,13 @@ class DialectOverrideTest {
     @Inject
     JobDao jobDao;
 
-    @Inject
-    @CockroachDb
-    InstanceDao cockroachInstanceDao;
-
-    @Inject
-    @CockroachDb
-    JobDao cockroachJobDao;
-
     @Test
     void dialectOverride_overridesDbKind() {
         // db-kind is postgresql but dialect override is cockroachdb
-        // Verify CockroachDb DAOs are selected despite postgresql db-kind
-        assertSame(cockroachInstanceDao, instanceDao);
-        assertSame(cockroachJobDao, jobDao);
+        Object unwrappedInstance = ClientProxy.unwrap(instanceDao);
+        Object unwrappedJob = ClientProxy.unwrap(jobDao);
+        assertInstanceOf(CockroachDbInstanceDao.class, unwrappedInstance);
+        assertInstanceOf(CockroachDbJobDao.class, unwrappedJob);
     }
 
     public static class Profile implements QuarkusTestProfile {

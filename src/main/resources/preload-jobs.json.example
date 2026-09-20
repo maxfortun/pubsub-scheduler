@@ -1,0 +1,14 @@
+[
+  {
+    "jobKey": "scheduler-heartbeat",
+    "destination": "scheduler-advisory",
+    "keyPolicy": "SKIP",
+    "sleepDuration": "PT15M",
+    "sleepRepeat": 0,
+    "headers": {
+      "SCHEDULER_INTERNAL_JOB": "true"
+    },
+    "body": "{\"type\":\"SCHEDULER_HEARTBEAT\"}",
+    "maxRetries": 3
+  }
+]

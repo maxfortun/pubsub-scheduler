@@ -54,6 +54,21 @@ public class JobStoreService {
         }
     }
 
+    public boolean saveIfNotExistsByKey(ScheduledJob job) {
+        try {
+            boolean inserted = jobDao.insertIfNotExistsByKey(job);
+            if (inserted) {
+                LOG.debugf("Saved job %s (key=%s)", job.getId(), job.getJobKey());
+            } else {
+                LOG.debugf("Job with key %s already exists, skipped", job.getJobKey());
+            }
+            return inserted;
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to save job %s", job.getId());
+            throw e;
+        }
+    }
+
     public void update(ScheduledJob job) {
         job.setVersion(job.getVersion() + 1);
         job.setUpdatedAt(Instant.now());

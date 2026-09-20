@@ -1,5 +1,6 @@
 package net.maxf.pubsub.scheduler.dao;
 
+import io.quarkus.arc.ClientProxy;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -22,20 +23,12 @@ class PostgresDaoSelectionTest {
     @Inject
     JobDao jobDao;
 
-    @Inject
-    @Postgres
-    InstanceDao postgresInstanceDao;
-
-    @Inject
-    @Postgres
-    JobDao postgresJobDao;
-
     @Test
     void postgresql_selectsPostgresDaos() {
-        // Verify qualified injection matches the default injection
-        // (proves the producer selected PostgresDao for postgresql db-kind)
-        assertSame(postgresInstanceDao, instanceDao);
-        assertSame(postgresJobDao, jobDao);
+        Object unwrappedInstance = ClientProxy.unwrap(instanceDao);
+        Object unwrappedJob = ClientProxy.unwrap(jobDao);
+        assertInstanceOf(PostgresInstanceDao.class, unwrappedInstance);
+        assertInstanceOf(PostgresJobDao.class, unwrappedJob);
     }
 
     public static class Profile implements QuarkusTestProfile {
