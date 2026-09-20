@@ -23,8 +23,12 @@ public class CockroachDbInstanceDao implements InstanceDao {
     @Override
     public void upsert(String instanceId, Instant heartbeatAt, Instant startedAt) {
         String sql = """
-            UPSERT INTO scheduler_instances (instance_id, heartbeat_at, started_at, version)
+            INSERT INTO scheduler_instances (instance_id, heartbeat_at, started_at, version)
             VALUES (?, ?, ?, 0)
+            ON CONFLICT (instance_id) DO UPDATE
+            SET heartbeat_at = excluded.heartbeat_at,
+                started_at = excluded.started_at,
+                version = scheduler_instances.version + 1
             """;
 
         try (Connection conn = dataSource.getConnection();
