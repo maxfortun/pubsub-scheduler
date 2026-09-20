@@ -86,7 +86,7 @@ public class PostgresJobDao implements JobDao {
             ps.setString(idx++, job.getDestinationTopic());
             ps.setBytes(idx++, job.getMessageKey());
             ps.setBytes(idx++, job.getMessageValue());
-            ps.setString(idx++, toJson(job.getHeaders()));
+            ps.setString(idx++, JsonUtil.toJson(job.getHeaders()));
             ps.setString(idx++, job.getAdvisoryHeadersPattern());
             ps.setString(idx++, job.getState().name());
             ps.setInt(idx++, job.getMaxRetries());
@@ -290,7 +290,7 @@ public class PostgresJobDao implements JobDao {
         ps.setString(idx++, job.getDestinationTopic());
         ps.setBytes(idx++, job.getMessageKey());
         ps.setBytes(idx++, job.getMessageValue());
-        ps.setString(idx++, toJson(job.getHeaders()));
+        ps.setString(idx++, JsonUtil.toJson(job.getHeaders()));
         ps.setString(idx++, job.getAdvisoryHeadersPattern());
         ps.setString(idx++, job.getState().name());
         ps.setInt(idx++, job.getMaxRetries());
@@ -323,7 +323,7 @@ public class PostgresJobDao implements JobDao {
         job.setDestinationTopic(rs.getString("destination_topic"));
         job.setMessageKey(rs.getBytes("message_key"));
         job.setMessageValue(rs.getBytes("message_value"));
-        job.setHeaders(fromJson(rs.getString("headers")));
+        job.setHeaders(JsonUtil.fromJson(rs.getString("headers")));
         job.setAdvisoryHeadersPattern(rs.getString("advisory_headers_pattern"));
         job.setState(JobState.valueOf(rs.getString("state")));
         job.setMaxRetries(rs.getInt("max_retries"));
@@ -390,48 +390,4 @@ public class PostgresJobDao implements JobDao {
         }
     }
 
-    private String toJson(Map<String, String> headers) {
-        if (headers == null || headers.isEmpty()) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, String> e : headers.entrySet()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(escapeJson(e.getKey())).append("\":\"").append(escapeJson(e.getValue())).append("\"");
-            first = false;
-        }
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private Map<String, String> fromJson(String json) {
-        if (json == null || json.isBlank()) {
-            return new HashMap<>();
-        }
-        Map<String, String> result = new HashMap<>();
-        json = json.trim();
-        if (json.startsWith("{") && json.endsWith("}")) {
-            json = json.substring(1, json.length() - 1);
-            if (!json.isBlank()) {
-                for (String pair : json.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")) {
-                    String[] kv = pair.split(":", 2);
-                    if (kv.length == 2) {
-                        String key = kv[0].trim().replaceAll("^\"|\"$", "");
-                        String value = kv[1].trim().replaceAll("^\"|\"$", "");
-                        result.put(unescapeJson(key), unescapeJson(value));
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private String escapeJson(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    private String unescapeJson(String s) {
-        return s.replace("\\\"", "\"").replace("\\\\", "\\");
-    }
 }
