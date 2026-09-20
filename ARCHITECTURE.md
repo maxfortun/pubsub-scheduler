@@ -95,13 +95,14 @@ Published to `scheduler.advisory`, keyed by job key for partition affinity:
 
 | Event | When |
 |-------|------|
-| `JOB_QUEUED` | Job accepted and queued |
-| `JOB_WAITING` | Queued behind predecessor (QUEUE mode) |
-| `JOB_SKIPPED` | Dropped due to SKIP mode |
+| `JOB_QUEUED` | Job accepted, pending delivery |
+| `JOB_WAITING` | Blocked behind predecessor (QUEUE policy) |
+| `JOB_SKIPPED` | Dropped due to SKIP policy |
 | `JOB_REPLACED` | Cancelled by incoming REPLACE |
-| `JOB_PROMOTED` | WAITING → PENDING (predecessor done) |
-| `JOB_FIRING` | About to publish to destination |
-| `JOB_COMPLETE` | Successfully published |
+| `JOB_PROMOTED` | WAITING -> PENDING (predecessor done) |
+| `JOB_FIRING` | Delivering to destination |
+| `JOB_COMPLETE` | Delivered successfully |
+| `JOB_EXPIRED` | Recurring job finished |
 | `JOB_FAILED` | Failed after retries |
 | `JOB_CASCADE_FAILED` | Failed due to predecessor failure |
 
