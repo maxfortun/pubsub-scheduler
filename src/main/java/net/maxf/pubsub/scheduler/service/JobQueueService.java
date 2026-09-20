@@ -167,7 +167,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             job.setState(JobState.FIRING);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
-            advisoryService.publish(job, AdvisoryEvent.JOB_FIRING);
+            advisoryService.publish(job, AdvisoryEvent.JOB_RUNNING);
 
             fireToDestination(job);
 

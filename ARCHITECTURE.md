@@ -96,17 +96,21 @@ Published to `scheduler.advisory`, keyed by job key for partition affinity:
 | Event | When |
 |-------|------|
 | `JOB_QUEUED` | Job accepted, pending delivery |
-| `JOB_WAITING` | Blocked behind predecessor (QUEUE policy) |
-| `JOB_SKIPPED` | Dropped due to SKIP policy |
-| `JOB_REPLACED` | Cancelled by incoming REPLACE |
-| `JOB_PROMOTED` | WAITING -> PENDING (predecessor done) |
-| `JOB_FIRING` | Delivering to destination |
+| `JOB_CHAINED` | Linked behind predecessor (QUEUE policy) |
+| `JOB_PROMOTED` | Predecessor done, ready for delivery |
+| `JOB_RUNNING` | Delivering to destination |
 | `JOB_COMPLETE` | Delivered successfully |
 | `JOB_EXPIRED` | Recurring job finished |
+| `JOB_SKIPPED` | Dropped (SKIP policy) |
+| `JOB_REPLACED` | Cancelled by incoming REPLACE |
 | `JOB_FAILED` | Failed after retries |
 | `JOB_CASCADE_FAILED` | Failed due to predecessor failure |
 
 Advisory events contain metadata only (no original payload). The `SCHEDULER_ADVISORY_HEADERS` regex controls which non-scheduler headers from the original message are included.
+
+### Event State Machine
+
+![Advisory Event State Machine](docs/diagrams/images/event-state-machine.png)
 
 ## Timing: Push-Based (No Polling)
 

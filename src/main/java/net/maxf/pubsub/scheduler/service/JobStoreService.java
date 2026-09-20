@@ -161,7 +161,7 @@ public class JobStoreService {
                     job.setSequenceNum(predecessor.getSequenceNum() + 1);
                     job.setState(JobState.WAITING);
                     save(job);
-                    advisoryService.publish(job, AdvisoryEvent.JOB_WAITING);
+                    advisoryService.publish(job, AdvisoryEvent.JOB_CHAINED);
                     LOG.debugf("Job %s waiting behind %s", job.getId(), predecessor.getId());
                 }
             }

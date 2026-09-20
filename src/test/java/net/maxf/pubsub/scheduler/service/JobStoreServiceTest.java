@@ -156,7 +156,7 @@ class JobStoreServiceTest {
             assertEquals(predecessor.getId(), job.getPredecessorId());
             assertEquals(6, job.getSequenceNum());
             verify(jobDao).insert(job);
-            verify(advisoryService).publish(job, AdvisoryEvent.JOB_WAITING);
+            verify(advisoryService).publish(job, AdvisoryEvent.JOB_CHAINED);
             verify(jobQueue, never()).enqueue(any());
         }
     }
