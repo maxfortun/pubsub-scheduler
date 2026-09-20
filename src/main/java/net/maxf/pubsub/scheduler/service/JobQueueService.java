@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class JobQueueService implements InstanceRegistryService.ShardChangeListener {
@@ -25,6 +27,8 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     private final DelayQueue<ScheduledJob> delayQueue = new DelayQueue<>();
     private final Set<UUID> enqueuedJobIds = ConcurrentHashMap.newKeySet();
+    private final Object queueLock = new Object();
+    private final CountDownLatch registryReady = new CountDownLatch(1);
 
     @Inject
     JobStoreService jobStore;
@@ -47,6 +51,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     void onStart(@Observes StartupEvent ev) {
         instanceRegistry.setShardChangeListener(this);
+        instanceRegistry.setReadyCallback(this::signalRegistryReady);
         Thread.ofVirtual().name("job-fire-loop").start(this::fireLoop);
         LOG.info("Job fire loop started on virtual thread");
 
@@ -54,10 +59,13 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
         Thread.ofVirtual().name("job-loader").start(this::loadJobsOnStartup);
     }
 
+    private void signalRegistryReady() {
+        registryReady.countDown();
+    }
+
     @Override
     public void onShardChanged(int oldShard, int newShard, int shardCount) {
         if (isReplicated()) {
-            // In replicated mode, shard changes don't affect job loading
             LOG.debugf("Shard changed but running in replicated mode, no reload needed");
             return;
         }
@@ -66,9 +74,10 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     }
 
     private void loadJobsOnStartup() {
-        // Small delay to ensure instance registry has computed initial shard
         try {
-            Thread.sleep(1000);
+            if (!registryReady.await(30, TimeUnit.SECONDS)) {
+                LOG.warn("Timeout waiting for instance registry, loading jobs anyway");
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return;
@@ -77,30 +86,29 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     }
 
     private void reloadJobs() {
-        // Clear current queue
-        delayQueue.clear();
-        enqueuedJobIds.clear();
+        synchronized (queueLock) {
+            delayQueue.clear();
+            enqueuedJobIds.clear();
 
-        // Load jobs based on mode
-        List<ScheduledJob> jobs = isReplicated()
-            ? jobStore.loadAllPendingJobs()
-            : jobStore.loadPendingJobsForCurrentShard();
+            List<ScheduledJob> jobs = isReplicated()
+                ? jobStore.loadAllPendingJobs()
+                : jobStore.loadPendingJobsForCurrentShard();
 
-        for (ScheduledJob job : jobs) {
-            enqueue(job);
-        }
+            for (ScheduledJob job : jobs) {
+                enqueueInternal(job);
+            }
 
-        if (isReplicated()) {
-            LOG.infof("Loaded %d jobs (replicated mode)", jobs.size());
-        } else {
-            LOG.infof("Loaded %d jobs for shard %d/%d",
-                jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
+            if (isReplicated()) {
+                LOG.infof("Loaded %d jobs (replicated mode)", jobs.size());
+            } else {
+                LOG.infof("Loaded %d jobs for shard %d/%d",
+                    jobs.size(), instanceRegistry.getShardIndex(), instanceRegistry.getShardCount());
+            }
         }
     }
 
     @Scheduled(every = "${scheduler.catchup.interval:60s}")
     void catchUpScan() {
-        // Catch-up not needed in replicated mode (all jobs already enqueued locally)
         if (!catchUpEnabled || isReplicated()) {
             return;
         }
@@ -115,6 +123,12 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     }
 
     public void enqueue(ScheduledJob job) {
+        synchronized (queueLock) {
+            enqueueInternal(job);
+        }
+    }
+
+    private void enqueueInternal(ScheduledJob job) {
         if (enqueuedJobIds.add(job.getId())) {
             delayQueue.put(job);
             LOG.debugf("Job %s enqueued, fire at %s", job.getId(), job.getEffectiveFireAt());
@@ -122,8 +136,10 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     }
 
     public boolean remove(UUID jobId) {
-        enqueuedJobIds.remove(jobId);
-        return delayQueue.removeIf(job -> job.getId().equals(jobId));
+        synchronized (queueLock) {
+            enqueuedJobIds.remove(jobId);
+            return delayQueue.removeIf(job -> job.getId().equals(jobId));
+        }
     }
 
     private void fireLoop() {
@@ -141,7 +157,6 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     private void fireJob(ScheduledJob job) {
         try {
-            // Remove from tracking before firing
             enqueuedJobIds.remove(job.getId());
 
             if (!jobStore.acquire(job)) {
@@ -154,7 +169,6 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             jobStore.update(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_FIRING);
 
-            // Fire to destination via Camel direct endpoint
             fireToDestination(job);
 
             job.setState(JobState.COMPLETE);
@@ -162,16 +176,14 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             jobStore.update(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_COMPLETE);
 
-            // Promote waiting successors
             jobStore.promoteSuccessors(job);
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             handleFireFailure(job, e);
         }
     }
 
     private void fireToDestination(ScheduledJob job) {
-        // Will be implemented to call Camel ProducerTemplate
         LOG.infof("Firing job %s to %s", job.getId(), job.getDestinationTopic());
     }
 

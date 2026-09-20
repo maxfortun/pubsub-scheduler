@@ -9,6 +9,7 @@ import net.maxf.pubsub.scheduler.model.SleepStart;
 import net.maxf.pubsub.scheduler.rest.JobResource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -103,6 +104,7 @@ public class JobStoreService {
         }
     }
 
+    @Transactional
     public void handleIncomingJob(ScheduledJob job) {
         if (job.getJobKey() == null) {
             job.setState(JobState.PENDING);

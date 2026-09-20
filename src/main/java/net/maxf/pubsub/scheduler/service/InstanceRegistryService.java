@@ -41,12 +41,27 @@ public class InstanceRegistryService {
     private final AtomicInteger currentShardCount = new AtomicInteger(1);
     private volatile Instant startedAt;
     private volatile ShardChangeListener shardChangeListener;
+    private volatile Runnable readyCallback;
 
     public interface ShardChangeListener {
         void onShardChanged(int oldShard, int newShard, int shardCount);
     }
 
+    private void validateConfig() {
+        if (heartbeatIntervalSeconds <= 0) {
+            throw new IllegalStateException("scheduler.heartbeat.interval-seconds must be positive, got: " + heartbeatIntervalSeconds);
+        }
+        if (staleThresholdSeconds <= 0) {
+            throw new IllegalStateException("scheduler.heartbeat.stale-threshold-seconds must be positive, got: " + staleThresholdSeconds);
+        }
+        if (staleThresholdSeconds < heartbeatIntervalSeconds * 2) {
+            LOG.warnf("stale-threshold-seconds (%d) should be at least 2x heartbeat-interval-seconds (%d) to avoid false positives",
+                staleThresholdSeconds, heartbeatIntervalSeconds);
+        }
+    }
+
     void onStart(@Observes StartupEvent ev) {
+        validateConfig();
         startedAt = Instant.now();
         register();
 
@@ -79,6 +94,10 @@ public class InstanceRegistryService {
 
     public void setShardChangeListener(ShardChangeListener listener) {
         this.shardChangeListener = listener;
+    }
+
+    public void setReadyCallback(Runnable callback) {
+        this.readyCallback = callback;
     }
 
     public String getInstanceId() {
@@ -160,9 +179,16 @@ public class InstanceRegistryService {
             LOG.infof("Shard assignment changed: %d/%d -> %d/%d",
                 oldShardIndex, oldShardCount, newShardIndex, newShardCount);
 
-            ShardChangeListener listener = this.shardChangeListener;
-            if (listener != null && oldShardIndex >= 0) {
-                listener.onShardChanged(oldShardIndex, newShardIndex, newShardCount);
+            if (oldShardIndex < 0) {
+                Runnable callback = this.readyCallback;
+                if (callback != null) {
+                    callback.run();
+                }
+            } else {
+                ShardChangeListener listener = this.shardChangeListener;
+                if (listener != null) {
+                    listener.onShardChanged(oldShardIndex, newShardIndex, newShardCount);
+                }
             }
         }
     }

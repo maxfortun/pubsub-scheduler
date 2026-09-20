@@ -48,6 +48,7 @@ public class IngestProcessor implements Processor {
     public void process(Exchange exchange) throws Exception {
         Message message = exchange.getIn();
         ScheduledJob job = new ScheduledJob();
+        job.setArrivedAt(Instant.now());
 
         // Required: destination topic
         String destination = message.getHeader(HEADER_DESTINATION, String.class);

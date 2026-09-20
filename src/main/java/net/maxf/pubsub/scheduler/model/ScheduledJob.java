@@ -58,7 +58,7 @@ public class ScheduledJob implements Delayed {
 
     @Override
     public long getDelay(TimeUnit unit) {
-        Instant fireTime = effectiveFireAt != null ? effectiveFireAt : fireAt;
+        Instant fireTime = getFireTimeOrNow();
         long delayMillis = fireTime.toEpochMilli() - System.currentTimeMillis();
         return unit.convert(delayMillis, TimeUnit.MILLISECONDS);
     }
@@ -66,11 +66,15 @@ public class ScheduledJob implements Delayed {
     @Override
     public int compareTo(Delayed other) {
         if (other instanceof ScheduledJob otherJob) {
-            Instant thisFireTime = effectiveFireAt != null ? effectiveFireAt : fireAt;
-            Instant otherFireTime = otherJob.effectiveFireAt != null ? otherJob.effectiveFireAt : otherJob.fireAt;
-            return thisFireTime.compareTo(otherFireTime);
+            return getFireTimeOrNow().compareTo(otherJob.getFireTimeOrNow());
         }
         return Long.compare(getDelay(TimeUnit.MILLISECONDS), other.getDelay(TimeUnit.MILLISECONDS));
+    }
+
+    private Instant getFireTimeOrNow() {
+        if (effectiveFireAt != null) return effectiveFireAt;
+        if (fireAt != null) return fireAt;
+        return Instant.now();
     }
 
     // Getters and setters
