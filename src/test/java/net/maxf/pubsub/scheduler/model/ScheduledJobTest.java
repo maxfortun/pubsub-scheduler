@@ -20,7 +20,7 @@ class ScheduledJobTest {
         assertEquals(1, job.getSleepRepeat());
         assertEquals(0, job.getCronFireCount());
         assertEquals(JobState.PENDING, job.getState());
-        assertEquals(3, job.getMaxRetries());
+        assertEquals(0, job.getMaxRetries()); // Default is 0; IngestProcessor sets from config
         assertEquals(0, job.getRetryCount());
         assertEquals(0, job.getVersion());
         assertEquals(0, job.getSequenceNum());
