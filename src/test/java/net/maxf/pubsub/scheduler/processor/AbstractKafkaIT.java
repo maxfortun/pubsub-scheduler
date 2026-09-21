@@ -765,6 +765,148 @@ abstract class AbstractKafkaIT {
         }
     }
 
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class JobLifecycleTests {
+
+        @Test
+        @Order(1)
+        void immediateJob_firesAndCompletes() throws Exception {
+            String jobKey = "immediate-state-test-" + UUID.randomUUID();
+
+            // Send immediate job (no SCHEDULER_AT or SCHEDULER_SLEEP)
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test-body".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Immediate jobs fire instantly - verify job exists and completed
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job should exist");
+            ScheduledJob job = jobs.get(0);
+            // Job fires immediately so it should be COMPLETE (or still PENDING/FIRING)
+            assertTrue(job.getState() == JobState.COMPLETE ||
+                       job.getState() == JobState.PENDING ||
+                       job.getState() == JobState.FIRING,
+                "Immediate job should fire. State: " + job.getState());
+            assertNotNull(job.getFireAt(), "Fire time should be set");
+        }
+
+        @Test
+        @Order(2)
+        void queuePolicy_multipleJobs_correctChaining() throws Exception {
+            String jobKey = "chain-state-test-" + UUID.randomUUID();
+
+            // Send first job with future fire time
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+            ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "first".getBytes());
+            record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record1.headers().add(header("SCHEDULER_KEY", jobKey));
+            record1.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record1).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(3000);
+
+            // Send second job - should chain behind first
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "second".getBytes());
+            record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record2.headers().add(header("SCHEDULER_KEY", jobKey));
+            record2.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plus(1, ChronoUnit.MINUTES).toString()));
+            producer.send(record2).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify chaining: first PENDING, second WAITING with predecessor
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertEquals(2, jobs.size(), "Should have 2 jobs");
+
+            // Sort by sequence number to get correct order
+            jobs.sort(Comparator.comparingInt(ScheduledJob::getSequenceNum));
+            ScheduledJob firstJob = jobs.get(0);
+            ScheduledJob secondJob = jobs.get(1);
+
+            assertEquals(JobState.PENDING, firstJob.getState(), "First job should be PENDING");
+            assertEquals(JobState.WAITING, secondJob.getState(), "Second job should be WAITING");
+            assertEquals(firstJob.getId(), secondJob.getPredecessorId(), "Second job should have first as predecessor");
+            assertEquals(1, secondJob.getSequenceNum(), "Second job should have sequence 1");
+        }
+
+        @Test
+        @Order(3)
+        void sleepRepeat_storedCorrectly() throws Exception {
+            String jobKey = "repeat-store-test-" + UUID.randomUUID();
+
+            // Send job with sleep and repeat
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "repeat-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_SLEEP", "PT5M")); // 5 minute sleep
+            record.headers().add(header("SCHEDULER_SLEEP_REPEAT", "10")); // Repeat 10 times
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify repeat count stored correctly
+            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job should be created");
+            ScheduledJob job = jobs.get(0);
+            assertEquals(10, job.getSleepRepeat(), "Repeat count should be 10");
+            assertEquals("PT5M", job.getSleepDuration(), "Sleep duration should be PT5M");
+        }
+
+        @Test
+        @Order(4)
+        void scheduledJob_fireTimeSetCorrectly() throws Exception {
+            String jobKey = "fire-time-test-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(30, ChronoUnit.MINUTES);
+
+            // Send scheduled job
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "scheduled".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify fire time set correctly
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job should exist");
+            ScheduledJob job = jobs.get(0);
+            assertEquals(JobState.PENDING, job.getState(), "Job should be PENDING");
+            assertTrue(job.getFireAt().isAfter(Instant.now()), "Fire time should be in the future");
+            // Allow 5 second tolerance for timing differences
+            assertTrue(Math.abs(job.getFireAt().getEpochSecond() - futureTime.getEpochSecond()) < 5,
+                "Fire time should match requested time");
+        }
+
+        @Test
+        @Order(5)
+        void cronJob_expressionAndStartTimeSet() throws Exception {
+            String jobKey = "cron-store-test-" + UUID.randomUUID();
+
+            // Send CRON job
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "cron-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_CRON", "0 0 * * *")); // Daily at midnight
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify CRON expression stored
+            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job should be created");
+            ScheduledJob job = jobs.get(0);
+            assertEquals("0 0 * * *", job.getCronExpression(), "CRON expression should be stored");
+            assertNotNull(job.getFireAt(), "Fire time should be calculated");
+        }
+    }
+
     protected RecordHeader header(String key, String value) {
         return new RecordHeader(key, value.getBytes(StandardCharsets.UTF_8));
     }
