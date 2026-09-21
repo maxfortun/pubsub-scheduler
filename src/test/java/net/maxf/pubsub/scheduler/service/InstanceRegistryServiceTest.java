@@ -7,7 +7,6 @@ import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import net.maxf.pubsub.scheduler.dao.InstanceDao;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@Tag("database")
 @QuarkusTest
 @TestProfile(InstanceRegistryServiceTest.Profile.class)
 class InstanceRegistryServiceTest {

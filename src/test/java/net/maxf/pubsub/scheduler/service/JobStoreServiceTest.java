@@ -20,14 +20,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Tag;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.doNothing;
 
 @QuarkusTest
-@Tag("database")
 class JobStoreServiceTest {
 
     @Inject

@@ -55,9 +55,12 @@ abstract class AbstractKafkaIT {
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test-dlq-consumer-" + UUID.randomUUID());
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         dlqConsumer = new KafkaConsumer<>(consumerProps);
         dlqConsumer.subscribe(Collections.singletonList(SCHEDULER_DLQ_TOPIC));
+        // Trigger partition assignment and seek to end
+        dlqConsumer.poll(Duration.ofSeconds(5));
+        dlqConsumer.seekToEnd(dlqConsumer.assignment());
     }
 
     @AfterAll
@@ -637,13 +640,32 @@ abstract class AbstractKafkaIT {
     }
 
     protected ConsumerRecords<String, byte[]> pollDlq(Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        while (System.currentTimeMillis() < deadline) {
-            ConsumerRecords<String, byte[]> records = dlqConsumer.poll(Duration.ofMillis(500));
-            if (records.count() > 0) {
-                return records;
+        // Create a fresh consumer for each DLQ poll
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "dlq-poll-" + UUID.randomUUID());
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps)) {
+            // Manually assign partition and seek to near end
+            var partition = new org.apache.kafka.common.TopicPartition(SCHEDULER_DLQ_TOPIC, 0);
+            consumer.assign(Collections.singletonList(partition));
+
+            // Get end offset and seek to 10 messages before end (buffer for timing)
+            long endOffset = consumer.endOffsets(Collections.singletonList(partition)).get(partition);
+            long seekOffset = Math.max(0, endOffset - 10);
+            consumer.seek(partition, seekOffset);
+
+            long deadline = System.currentTimeMillis() + timeout.toMillis();
+            while (System.currentTimeMillis() < deadline) {
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(500));
+                if (records.count() > 0) {
+                    return records;
+                }
             }
+            return ConsumerRecords.empty();
         }
-        return ConsumerRecords.empty();
     }
 }
