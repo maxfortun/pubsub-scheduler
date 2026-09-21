@@ -78,3 +78,7 @@ bin/
 # Node
 node_modules/
 package-lock.json
+
+# UI
+ui/node_modules/
+ui/dist/

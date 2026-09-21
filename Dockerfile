@@ -1,4 +1,21 @@
-# Stage 1: Build (Gradle pre-installed)
+# Stage 1: Build UI
+FROM node:20-alpine AS ui-builder
+
+WORKDIR /app/ui
+
+# Copy UI package files
+COPY ui/package.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy UI source
+COPY ui/ ./
+
+# Build UI
+RUN npm run build
+
+# Stage 2: Build Backend (Gradle pre-installed)
 FROM gradle:8.14-jdk21-alpine AS builder
 
 WORKDIR /app
@@ -29,10 +46,13 @@ RUN gradle dependencies --no-daemon
 # Copy source
 COPY src src
 
+# Copy built UI to static resources before build
+COPY --from=ui-builder /app/ui/dist/ src/main/resources/META-INF/resources/
+
 # Build
 RUN gradle build -x test --no-daemon
 
-# Stage 2: Runtime (~90MB)
+# Stage 3: Runtime (~90MB)
 FROM bellsoft/liberica-openjre-alpine:21
 
 WORKDIR /app
@@ -43,10 +63,12 @@ COPY --from=builder /app/build/quarkus-app/*.jar /app/
 COPY --from=builder /app/build/quarkus-app/app/ /app/app/
 COPY --from=builder /app/build/quarkus-app/quarkus/ /app/quarkus/
 
+# Copy UI files to a location Quarkus can serve
+# Quarkus serves static files from META-INF/resources in the classpath
+RUN mkdir -p /app/static
+COPY --from=ui-builder /app/ui/dist/ /app/static/
+
 # JVM memory settings - tuned for Quarkus + Camel + Kafka
-# Heap: 512MB default, configurable via JAVA_OPTS_APPEND
-# MetaSpace: 128MB for Quarkus/Camel class loading
-# Container-aware: uses cgroup limits when available
 ENV JAVA_OPTS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
     -XX:+UseG1GC \
     -XX:MaxGCPauseMillis=200 \
@@ -55,7 +77,8 @@ ENV JAVA_OPTS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager \
     -XX:InitialRAMPercentage=50.0 \
     -Xms256m \
     -Xmx512m \
-    -XX:MaxMetaspaceSize=128m"
+    -XX:MaxMetaspaceSize=128m \
+    -Dquarkus.http.static-resources.index-page=index.html"
 
 # Allow additional JVM options via environment
 ENV JAVA_OPTS_APPEND=""
