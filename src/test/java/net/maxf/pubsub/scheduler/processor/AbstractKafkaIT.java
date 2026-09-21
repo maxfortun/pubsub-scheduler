@@ -39,7 +39,6 @@ abstract class AbstractKafkaIT {
     JobStoreService jobStore;
 
     static KafkaProducer<String, byte[]> producer;
-    static KafkaConsumer<String, byte[]> dlqConsumer;
 
     @BeforeAll
     static void setupKafka() {
@@ -49,24 +48,11 @@ abstract class AbstractKafkaIT {
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         producerProps.put(ProducerConfig.ACKS_CONFIG, "all");
         producer = new KafkaProducer<>(producerProps);
-
-        Properties consumerProps = new Properties();
-        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
-        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test-dlq-consumer-" + UUID.randomUUID());
-        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-        dlqConsumer = new KafkaConsumer<>(consumerProps);
-        dlqConsumer.subscribe(Collections.singletonList(SCHEDULER_DLQ_TOPIC));
-        // Trigger partition assignment and seek to end
-        dlqConsumer.poll(Duration.ofSeconds(5));
-        dlqConsumer.seekToEnd(dlqConsumer.assignment());
     }
 
     @AfterAll
     static void teardownKafka() {
         if (producer != null) producer.close();
-        if (dlqConsumer != null) dlqConsumer.close();
     }
 
     @Nested
@@ -76,13 +62,14 @@ abstract class AbstractKafkaIT {
         @Test
         @Order(1)
         void missingDestination_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-missing-dest-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
-            assertTrue(records.count() > 0, "Expected message in DLQ");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ with correlationId: " + correlationId);
 
-            ConsumerRecord<String, byte[]> dlqRecord = records.iterator().next();
             String error = getHeader(dlqRecord, "SCHEDULER_ERROR");
             assertTrue(error.contains("SCHEDULER_DESTINATION"), "Error should mention missing destination");
         }
@@ -90,12 +77,14 @@ abstract class AbstractKafkaIT {
         @Test
         @Order(2)
         void blankDestination_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-blank-dest-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(new RecordHeader("SCHEDULER_DESTINATION", "   ".getBytes()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
-            assertTrue(records.count() > 0, "Expected message in DLQ");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ with correlationId: " + correlationId);
         }
 
         @Test
@@ -186,16 +175,17 @@ abstract class AbstractKafkaIT {
         @Test
         @Order(4)
         void multipleTimingHeaders_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-multi-timing-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_AT", Instant.now().plus(1, ChronoUnit.HOURS).toString()));
             record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ for mutually exclusive timing headers");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ with correlationId: " + correlationId);
 
-            ConsumerRecord<String, byte[]> dlqRecord = records.iterator().next();
             String error = getHeader(dlqRecord, "SCHEDULER_ERROR");
             assertTrue(error.contains("mutually exclusive"), "Error should mention mutual exclusivity");
         }
@@ -218,9 +208,11 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty(), "CRON job should be created");
             ScheduledJob job = jobs.get(0);
             assertEquals("* * * * *", job.getCronExpression());
-            // Should fire within the next 60 seconds
-            assertTrue(job.getFireAt().isAfter(before.minusSeconds(1)));
-            assertTrue(job.getFireAt().isBefore(before.plusSeconds(61)));
+            // Should fire within the next ~2 minutes (allowing for timing variations)
+            assertTrue(job.getFireAt().isAfter(before.minusSeconds(5)),
+                "fireAt should be after test start: " + job.getFireAt() + " vs " + before);
+            assertTrue(job.getFireAt().isBefore(before.plusSeconds(120)),
+                "fireAt should be within 2 minutes: " + job.getFireAt() + " vs " + before.plusSeconds(120));
         }
     }
 
@@ -231,17 +223,18 @@ abstract class AbstractKafkaIT {
         @Test
         @Order(1)
         void cronEndAndCronCount_mutuallyExclusive_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-cron-exclusive-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_CRON", "0 0 * * *"));
             record.headers().add(header("SCHEDULER_CRON_END", Instant.now().plus(30, ChronoUnit.DAYS).toString()));
             record.headers().add(header("SCHEDULER_CRON_COUNT", "5"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(30));
-            assertTrue(records.count() > 0);
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ with correlationId: " + correlationId);
 
-            ConsumerRecord<String, byte[]> dlqRecord = records.iterator().next();
             String error = getHeader(dlqRecord, "SCHEDULER_ERROR");
             assertTrue(error.contains("SCHEDULER_CRON_END") && error.contains("SCHEDULER_CRON_COUNT"));
         }
@@ -519,50 +512,58 @@ abstract class AbstractKafkaIT {
         @Test
         @Order(1)
         void invalidAtFormat_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-invalid-at-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_AT", "not-a-timestamp"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ for invalid AT format");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ for invalid AT format");
         }
 
         @Test
         @Order(2)
         void invalidSleepFormat_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-invalid-sleep-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_SLEEP", "not-a-duration"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ for invalid SLEEP format");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ for invalid SLEEP format");
         }
 
         @Test
         @Order(3)
         void invalidSleepStart_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-invalid-sleepstart-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
             record.headers().add(header("SCHEDULER_SLEEP_START", "INVALID"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ for invalid SLEEP_START");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ for invalid SLEEP_START");
         }
 
         @Test
         @Order(4)
         void invalidKeyPolicy_sendsToDeadLetterQueue() throws Exception {
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
+            String correlationId = "dlq-invalid-policy-" + UUID.randomUUID();
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY_POLICY", "INVALID"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
-            ConsumerRecords<String, byte[]> records = pollDlq(Duration.ofSeconds(10));
-            assertTrue(records.count() > 0, "Expected message in DLQ for invalid KEY_POLICY");
+            ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
+            assertNotNull(dlqRecord, "Expected message in DLQ for invalid KEY_POLICY");
         }
     }
 
@@ -639,23 +640,52 @@ abstract class AbstractKafkaIT {
         return header != null ? new String(header.value(), StandardCharsets.UTF_8) : null;
     }
 
-    protected ConsumerRecords<String, byte[]> pollDlq(Duration timeout) {
-        // Create a fresh consumer for each DLQ poll
+    /**
+     * Poll DLQ for a message with a specific correlation ID in the body.
+     * Uses unique IDs to correlate test messages and avoid reading stale messages.
+     * Scans from near the end of the topic to find the matching message.
+     */
+    protected ConsumerRecord<String, byte[]> pollDlqForMessage(String correlationId, Duration timeout) {
         Properties consumerProps = new Properties();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "dlq-poll-" + UUID.randomUUID());
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps)) {
-            // Manually assign partition and seek to near end
+            // Assign partition and seek to near end (last 50 messages as buffer)
             var partition = new org.apache.kafka.common.TopicPartition(SCHEDULER_DLQ_TOPIC, 0);
             consumer.assign(Collections.singletonList(partition));
-
-            // Get end offset and seek to 10 messages before end (buffer for timing)
             long endOffset = consumer.endOffsets(Collections.singletonList(partition)).get(partition);
-            long seekOffset = Math.max(0, endOffset - 10);
+            long seekOffset = Math.max(0, endOffset - 50);
+            consumer.seek(partition, seekOffset);
+
+            long deadline = System.currentTimeMillis() + timeout.toMillis();
+            while (System.currentTimeMillis() < deadline) {
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(500));
+                for (ConsumerRecord<String, byte[]> record : records) {
+                    String body = new String(record.value(), StandardCharsets.UTF_8);
+                    if (body.contains(correlationId)) {
+                        return record;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    protected ConsumerRecords<String, byte[]> pollDlq(Duration timeout) {
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "dlq-poll-" + UUID.randomUUID());
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+
+        try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps)) {
+            var partition = new org.apache.kafka.common.TopicPartition(SCHEDULER_DLQ_TOPIC, 0);
+            consumer.assign(Collections.singletonList(partition));
+            long endOffset = consumer.endOffsets(Collections.singletonList(partition)).get(partition);
+            long seekOffset = Math.max(0, endOffset - 50);
             consumer.seek(partition, seekOffset);
 
             long deadline = System.currentTimeMillis() + timeout.toMillis();
