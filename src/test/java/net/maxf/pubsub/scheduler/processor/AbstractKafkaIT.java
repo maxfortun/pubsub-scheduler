@@ -1123,11 +1123,11 @@ abstract class AbstractKafkaIT {
         void cronJob_calculatesNextFireTime() throws Exception {
             String jobKey = "cron-next-fire-" + UUID.randomUUID();
 
-            // Create CRON job that runs every minute
+            // Create CRON job that runs every hour (won't fire immediately)
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "cron-repeat".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_CRON", "* * * * *")); // Every minute
+            record.headers().add(header("SCHEDULER_CRON", "0 * * * *")); // Every hour at minute 0
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -1136,11 +1136,11 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty(), "CRON job should exist");
             ScheduledJob job = jobs.get(0);
 
-            // Fire time should be within the next minute
+            // Fire time should be within the next hour
             Instant now = Instant.now();
-            Instant maxFireTime = now.plus(2, ChronoUnit.MINUTES);
+            Instant maxFireTime = now.plus(1, ChronoUnit.HOURS).plus(1, ChronoUnit.MINUTES);
             assertTrue(job.getFireAt().isBefore(maxFireTime),
-                "CRON job fire time should be within next 2 minutes. FireAt: " + job.getFireAt());
+                "CRON job fire time should be within next hour. FireAt: " + job.getFireAt());
         }
 
         @Test
