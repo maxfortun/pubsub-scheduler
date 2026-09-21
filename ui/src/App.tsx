@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ScheduledJob, JobStats, JobState, JobFilters } from './types';
-import { fetchJobs, fetchStats, cancelJob } from './api';
+import type { ScheduledJob, JobStats, JobState, JobFilters, CreateJobRequest } from './types';
+import { fetchJobs, fetchStats, cancelJob, createJob } from './api';
 import './App.css';
 
 function App() {
@@ -14,6 +14,13 @@ function App() {
     offset: 0,
     limit: 20,
   });
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateJobRequest>({
+    destinationTopic: '',
+    delaySeconds: 60,
+    messageValue: '',
+  });
+  const [creating, setCreating] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -62,6 +69,60 @@ function App() {
     setFilters(f => ({ ...f, offset: Math.max(0, newOffset) }));
   };
 
+  const validateForm = (): string[] => {
+    const errors: string[] = [];
+    const topicPattern = /^[a-zA-Z0-9._-]+$/;
+
+    if (!createForm.destinationTopic?.trim()) {
+      errors.push('Destination topic is required');
+    } else {
+      const topic = createForm.destinationTopic.trim();
+      if (topic.length > 249) {
+        errors.push('Topic name too long (max 249 characters)');
+      }
+      if (!topicPattern.test(topic)) {
+        errors.push('Topic contains invalid characters (use alphanumeric, dots, dashes, underscores)');
+      }
+    }
+
+    if (createForm.jobKey && createForm.jobKey.length > 255) {
+      errors.push('Job key too long (max 255 characters)');
+    }
+
+    if (createForm.delaySeconds !== undefined && createForm.delaySeconds < 0) {
+      errors.push('Delay must be non-negative');
+    }
+
+    if (createForm.cronExpression) {
+      const parts = createForm.cronExpression.trim().split(/\s+/);
+      if (parts.length < 5 || parts.length > 6) {
+        errors.push('Cron expression should have 5 or 6 parts (e.g., "0 * * * *")');
+      }
+    }
+
+    return errors;
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors = validateForm();
+    if (errors.length > 0) {
+      alert(errors.join('\n'));
+      return;
+    }
+    try {
+      setCreating(true);
+      await createJob(createForm);
+      setShowCreateForm(false);
+      setCreateForm({ destinationTopic: '', delaySeconds: 60, messageValue: '' });
+      loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create job');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
   };
@@ -78,16 +139,142 @@ function App() {
     }
   };
 
+  const isCancellable = (state: JobState) => state === 'PENDING' || state === 'WAITING';
+
+  const handleCancelClick = (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    handleCancel(jobId);
+  };
+
   return (
     <div className="app">
       <header className="header">
         <h1>Kafka Scheduler</h1>
-        <button onClick={loadData} disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh'}
-        </button>
+        <div className="header-actions">
+          <button className="create-btn" onClick={() => setShowCreateForm(true)}>
+            + New Job
+          </button>
+          <button onClick={loadData} disabled={loading}>
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {error && <div className="error">{error}</div>}
+
+      {showCreateForm && (
+        <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Job</h2>
+              <button className="close-btn" onClick={() => setShowCreateForm(false)}>x</button>
+            </div>
+            <form onSubmit={handleCreate} className="create-form">
+              <div className="form-group">
+                <label>Destination Topic *</label>
+                <input
+                  type="text"
+                  value={createForm.destinationTopic}
+                  onChange={e => setCreateForm(f => ({ ...f, destinationTopic: e.target.value }))}
+                  placeholder="my-output-topic"
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Job Key</label>
+                  <input
+                    type="text"
+                    value={createForm.jobKey || ''}
+                    onChange={e => setCreateForm(f => ({ ...f, jobKey: e.target.value || undefined }))}
+                    placeholder="Optional key for chaining"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Key Policy</label>
+                  <select
+                    value={createForm.keyPolicy || 'QUEUE'}
+                    onChange={e => setCreateForm(f => ({ ...f, keyPolicy: e.target.value as 'QUEUE' | 'SKIP' | 'REPLACE' }))}
+                  >
+                    <option value="QUEUE">Queue</option>
+                    <option value="SKIP">Skip</option>
+                    <option value="REPLACE">Replace</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Timing</label>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Delay (seconds)</label>
+                    <input
+                      type="number"
+                      value={createForm.delaySeconds || ''}
+                      onChange={e => setCreateForm(f => ({ ...f, delaySeconds: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      placeholder="60"
+                      min="0"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Repeat Count</label>
+                    <input
+                      type="number"
+                      value={createForm.sleepRepeat ?? ''}
+                      onChange={e => setCreateForm(f => ({ ...f, sleepRepeat: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      placeholder="1 (0=infinite)"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Or ISO Duration</label>
+                    <input
+                      type="text"
+                      value={createForm.sleepDuration || ''}
+                      onChange={e => setCreateForm(f => ({ ...f, sleepDuration: e.target.value || undefined }))}
+                      placeholder="PT1H, PT30M, P1D"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Or Cron Expression</label>
+                    <input
+                      type="text"
+                      value={createForm.cronExpression || ''}
+                      onChange={e => setCreateForm(f => ({ ...f, cronExpression: e.target.value || undefined }))}
+                      placeholder="0 * * * *"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Message Key</label>
+                <input
+                  type="text"
+                  value={createForm.messageKey || ''}
+                  onChange={e => setCreateForm(f => ({ ...f, messageKey: e.target.value || undefined }))}
+                  placeholder="Kafka message key"
+                />
+              </div>
+              <div className="form-group">
+                <label>Message Payload</label>
+                <textarea
+                  value={createForm.messageValue || ''}
+                  onChange={e => setCreateForm(f => ({ ...f, messageValue: e.target.value || undefined }))}
+                  placeholder='{"orderId": 123}'
+                  rows={4}
+                />
+              </div>
+              <div className="form-actions">
+                <button type="button" onClick={() => setShowCreateForm(false)}>Cancel</button>
+                <button type="submit" className="create-btn" disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Job'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {stats && (
         <div className="stats">
@@ -150,6 +337,7 @@ function App() {
                 <th>Destination</th>
                 <th>Fire At</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -171,11 +359,22 @@ function App() {
                   <td className="destination">{job.destinationTopic}</td>
                   <td>{formatDate(job.effectiveFireAt)}</td>
                   <td>{formatDate(job.createdAt)}</td>
+                  <td className="actions-cell">
+                    {isCancellable(job.state) && (
+                      <button
+                        className="cancel-btn-small"
+                        onClick={(e) => handleCancelClick(e, job.id)}
+                        title="Cancel job"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="no-data">No jobs found</td>
+                  <td colSpan={6} className="no-data">No jobs found</td>
                 </tr>
               )}
             </tbody>

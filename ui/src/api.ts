@@ -1,4 +1,4 @@
-import type { ScheduledJob, JobStats, PagedResult, JobFilters } from './types';
+import type { ScheduledJob, JobStats, PagedResult, JobFilters, CreateJobRequest } from './types';
 
 const API_BASE = '/api';
 
@@ -28,5 +28,18 @@ export async function cancelJob(id: string): Promise<void> {
 export async function fetchStats(): Promise<JobStats> {
   const response = await fetch(`${API_BASE}/jobs/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
+  return response.json();
+}
+
+export async function createJob(request: CreateJobRequest): Promise<ScheduledJob> {
+  const response = await fetch(`${API_BASE}/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to create job' }));
+    throw new Error(error.error || 'Failed to create job');
+  }
   return response.json();
 }

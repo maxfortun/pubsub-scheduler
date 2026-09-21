@@ -50,3 +50,21 @@ export interface JobFilters {
   offset: number;
   limit: number;
 }
+
+export interface CreateJobRequest {
+  destinationTopic: string;
+  jobKey?: string;
+  keyPolicy?: 'QUEUE' | 'SKIP' | 'REPLACE';
+  fireAt?: string;
+  delaySeconds?: number;
+  sleepDuration?: string;
+  sleepStart?: 'SELF' | 'PREV';
+  sleepRepeat?: number;
+  cronExpression?: string;
+  cronEnd?: string;
+  cronMaxCount?: number;
+  maxRetries?: number;
+  messageKey?: string;
+  messageValue?: string;
+  headers?: Record<string, string>;
+}
