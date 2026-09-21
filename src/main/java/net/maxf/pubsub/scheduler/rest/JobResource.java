@@ -43,7 +43,6 @@ public class JobResource {
     private static final int MAX_HEADER_KEY_LENGTH = 255;
     private static final int MAX_HEADER_VALUE_LENGTH = 10000;
     private static final int MAX_RETRIES_LIMIT = 100;
-    private static final long MAX_DELAY_SECONDS = 365L * 24 * 60 * 60;
 
     @Inject
     JobStoreService jobStore;
@@ -152,8 +151,8 @@ public class JobResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Create a scheduled job",
-        description = "Creates a new scheduled job. Specify timing using one of: fireAt (absolute), delaySeconds (relative), " +
-            "sleepDuration (ISO-8601 duration), or cronExpression."
+        description = "Creates a new scheduled job. Specify timing using one of: fireAt (absolute ISO-8601 timestamp), " +
+            "sleepDuration (ISO-8601 duration like PT30S, PT5M, PT1H, P1D), or cronExpression (5-part cron)."
     )
     @APIResponses({
         @APIResponse(
@@ -198,10 +197,6 @@ public class JobResource {
             job.setSleepRepeat(request.sleepRepeat != null ? Math.max(0, request.sleepRepeat) : 1);
             Duration d = Duration.parse(request.sleepDuration.trim());
             job.setFireAt(now.plus(d));
-            job.setEffectiveFireAt(job.getFireAt());
-        } else if (request.delaySeconds != null && request.delaySeconds > 0) {
-            long delay = Math.min(request.delaySeconds, MAX_DELAY_SECONDS);
-            job.setFireAt(now.plusSeconds(delay));
             job.setEffectiveFireAt(job.getFireAt());
         } else if (request.fireAt != null) {
             job.setFireAt(request.fireAt);
@@ -255,10 +250,6 @@ public class JobResource {
             }
         }
 
-        if (request.delaySeconds != null && request.delaySeconds < 0) {
-            errors.add("delaySeconds must be non-negative");
-        }
-
         if (request.maxRetries != null && request.maxRetries < 0) {
             errors.add("maxRetries must be non-negative");
         }
@@ -296,10 +287,7 @@ public class JobResource {
         @Schema(description = "Absolute fire time (ISO-8601)", example = "2024-12-31T23:59:59Z")
         public Instant fireAt;
 
-        @Schema(description = "Delay in seconds from now", example = "60")
-        public Long delaySeconds;
-
-        @Schema(description = "ISO-8601 duration for sleep scheduling", example = "PT1H")
+        @Schema(description = "ISO-8601 duration (PT30S=30sec, PT5M=5min, PT1H=1hr, P1D=1day)", example = "PT1H")
         public String sleepDuration;
 
         @Schema(description = "Sleep start reference", example = "SELF")

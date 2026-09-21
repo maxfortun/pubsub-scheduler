@@ -1,5 +1,7 @@
 export type JobState = 'PENDING' | 'WAITING' | 'ACQUIRED' | 'FIRING' | 'COMPLETE' | 'FAILED';
 
+export type TimingType = 'AT' | 'DURATION' | 'CRON';
+
 export interface ScheduledJob {
   id: string;
   jobKey: string | null;
@@ -56,7 +58,6 @@ export interface CreateJobRequest {
   jobKey?: string;
   keyPolicy?: 'QUEUE' | 'SKIP' | 'REPLACE';
   fireAt?: string;
-  delaySeconds?: number;
   sleepDuration?: string;
   sleepStart?: 'SELF' | 'PREV';
   sleepRepeat?: number;

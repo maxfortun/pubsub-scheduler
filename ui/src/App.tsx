@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ScheduledJob, JobStats, JobState, JobFilters, CreateJobRequest } from './types';
+import type { ScheduledJob, JobStats, JobState, JobFilters, CreateJobRequest, TimingType } from './types';
 import { fetchJobs, fetchStats, cancelJob, createJob } from './api';
+import { AtTiming, DurationTiming, CronTiming } from './components';
 import './App.css';
 
 function App() {
@@ -15,9 +16,10 @@ function App() {
     limit: 20,
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [timingType, setTimingType] = useState<TimingType>('DURATION');
   const [createForm, setCreateForm] = useState<CreateJobRequest>({
     destinationTopic: '',
-    delaySeconds: 60,
+    sleepDuration: 'PT1M',
     messageValue: '',
   });
   const [creating, setCreating] = useState(false);
@@ -89,18 +91,48 @@ function App() {
       errors.push('Job key too long (max 255 characters)');
     }
 
-    if (createForm.delaySeconds !== undefined && createForm.delaySeconds < 0) {
-      errors.push('Delay must be non-negative');
-    }
-
-    if (createForm.cronExpression) {
-      const parts = createForm.cronExpression.trim().split(/\s+/);
-      if (parts.length < 5 || parts.length > 6) {
-        errors.push('Cron expression should have 5 or 6 parts (e.g., "0 * * * *")');
+    if (timingType === 'AT') {
+      if (!createForm.fireAt) {
+        errors.push('Fire time is required for AT timing');
+      }
+    } else if (timingType === 'DURATION') {
+      if (!createForm.sleepDuration) {
+        errors.push('Duration is required');
+      } else {
+        const durationPattern = /^P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$/i;
+        if (!durationPattern.test(createForm.sleepDuration.trim())) {
+          errors.push('Duration must be ISO 8601 format (e.g., PT30S, PT5M, PT1H, P1D)');
+        }
+      }
+    } else if (timingType === 'CRON') {
+      if (!createForm.cronExpression) {
+        errors.push('Cron expression is required');
+      } else {
+        const parts = createForm.cronExpression.trim().split(/\s+/);
+        if (parts.length < 5 || parts.length > 6) {
+          errors.push('Cron expression should have 5 or 6 parts (e.g., "0 * * * *")');
+        }
       }
     }
 
     return errors;
+  };
+
+  const handleTimingTypeChange = (type: TimingType) => {
+    setTimingType(type);
+    setCreateForm(f => ({
+      ...f,
+      fireAt: undefined,
+      sleepDuration: type === 'DURATION' ? 'PT1M' : undefined,
+      sleepRepeat: undefined,
+      cronExpression: undefined,
+      cronEnd: undefined,
+      cronMaxCount: undefined,
+    }));
+  };
+
+  const handleFormUpdate = (updates: Partial<CreateJobRequest>) => {
+    setCreateForm(f => ({ ...f, ...updates }));
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -114,7 +146,8 @@ function App() {
       setCreating(true);
       await createJob(createForm);
       setShowCreateForm(false);
-      setCreateForm({ destinationTopic: '', delaySeconds: 60, messageValue: '' });
+      setTimingType('DURATION');
+      setCreateForm({ destinationTopic: '', sleepDuration: 'PT1M', messageValue: '' });
       loadData();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create job');
@@ -203,50 +236,27 @@ function App() {
                 </div>
               </div>
               <div className="form-group">
-                <label>Timing</label>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Delay (seconds)</label>
-                    <input
-                      type="number"
-                      value={createForm.delaySeconds || ''}
-                      onChange={e => setCreateForm(f => ({ ...f, delaySeconds: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      placeholder="60"
-                      min="0"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Repeat Count</label>
-                    <input
-                      type="number"
-                      value={createForm.sleepRepeat ?? ''}
-                      onChange={e => setCreateForm(f => ({ ...f, sleepRepeat: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      placeholder="1 (0=infinite)"
-                      min="0"
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Or ISO Duration</label>
-                    <input
-                      type="text"
-                      value={createForm.sleepDuration || ''}
-                      onChange={e => setCreateForm(f => ({ ...f, sleepDuration: e.target.value || undefined }))}
-                      placeholder="PT1H, PT30M, P1D"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Or Cron Expression</label>
-                    <input
-                      type="text"
-                      value={createForm.cronExpression || ''}
-                      onChange={e => setCreateForm(f => ({ ...f, cronExpression: e.target.value || undefined }))}
-                      placeholder="0 * * * *"
-                    />
-                  </div>
-                </div>
+                <label>Timing Type</label>
+                <select
+                  value={timingType}
+                  onChange={e => handleTimingTypeChange(e.target.value as TimingType)}
+                  className="timing-select"
+                >
+                  <option value="AT">AT - Fire at specific time</option>
+                  <option value="DURATION">DURATION - Fire after delay</option>
+                  <option value="CRON">CRON - Recurring schedule</option>
+                </select>
               </div>
+
+              {timingType === 'AT' && (
+                <AtTiming form={createForm} onChange={handleFormUpdate} />
+              )}
+              {timingType === 'DURATION' && (
+                <DurationTiming form={createForm} onChange={handleFormUpdate} />
+              )}
+              {timingType === 'CRON' && (
+                <CronTiming form={createForm} onChange={handleFormUpdate} />
+              )}
               <div className="form-group">
                 <label>Message Key</label>
                 <input
