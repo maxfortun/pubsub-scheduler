@@ -16,9 +16,9 @@ class ScheduledJobTest {
 
         assertNotNull(job.getId());
         assertEquals(KeyPolicy.QUEUE, job.getKeyPolicy());
-        assertEquals(SleepStart.SELF, job.getSleepStart());
-        assertEquals(1, job.getSleepRepeat());
-        assertEquals(0, job.getCronFireCount());
+        assertEquals(WaitStart.SELF, job.getWaitStart());
+        assertEquals(1, job.getWaitRepeat());
+        assertEquals(0, job.getCronRunCount());
         assertEquals(JobState.PENDING, job.getState());
         assertEquals(0, job.getMaxRetries()); // Default is 0; IngestProcessor sets from config
         assertEquals(0, job.getRetryCount());
@@ -31,7 +31,7 @@ class ScheduledJobTest {
     @Test
     void getDelay_futureFireTime_returnsPositive() {
         ScheduledJob job = new ScheduledJob();
-        job.setFireAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        job.setRunAt(Instant.now().plus(1, ChronoUnit.HOURS));
 
         long delay = job.getDelay(TimeUnit.SECONDS);
 
@@ -42,7 +42,7 @@ class ScheduledJobTest {
     @Test
     void getDelay_pastFireTime_returnsNegative() {
         ScheduledJob job = new ScheduledJob();
-        job.setFireAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        job.setRunAt(Instant.now().minus(1, ChronoUnit.HOURS));
 
         long delay = job.getDelay(TimeUnit.SECONDS);
 
@@ -50,10 +50,10 @@ class ScheduledJobTest {
     }
 
     @Test
-    void getDelay_effectiveFireAtTakesPrecedence() {
+    void getDelay_effectiveRunAtTakesPrecedence() {
         ScheduledJob job = new ScheduledJob();
-        job.setFireAt(Instant.now().plus(1, ChronoUnit.HOURS));
-        job.setEffectiveFireAt(Instant.now().plus(2, ChronoUnit.HOURS));
+        job.setRunAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        job.setEffectiveRunAt(Instant.now().plus(2, ChronoUnit.HOURS));
 
         long delay = job.getDelay(TimeUnit.SECONDS);
 
@@ -63,7 +63,7 @@ class ScheduledJobTest {
     @Test
     void getDelay_nullFireTimes_fallsBackToNow() {
         ScheduledJob job = new ScheduledJob();
-        // fireAt and effectiveFireAt are both null
+        // runAt and effectiveRunAt are both null
 
         long delay = job.getDelay(TimeUnit.MILLISECONDS);
 
@@ -73,10 +73,10 @@ class ScheduledJobTest {
     @Test
     void compareTo_earlierJob_returnsNegative() {
         ScheduledJob earlier = new ScheduledJob();
-        earlier.setFireAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        earlier.setRunAt(Instant.now().plus(1, ChronoUnit.HOURS));
 
         ScheduledJob later = new ScheduledJob();
-        later.setFireAt(Instant.now().plus(2, ChronoUnit.HOURS));
+        later.setRunAt(Instant.now().plus(2, ChronoUnit.HOURS));
 
         assertTrue(earlier.compareTo(later) < 0);
     }
@@ -84,10 +84,10 @@ class ScheduledJobTest {
     @Test
     void compareTo_laterJob_returnsPositive() {
         ScheduledJob earlier = new ScheduledJob();
-        earlier.setFireAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        earlier.setRunAt(Instant.now().plus(1, ChronoUnit.HOURS));
 
         ScheduledJob later = new ScheduledJob();
-        later.setFireAt(Instant.now().plus(2, ChronoUnit.HOURS));
+        later.setRunAt(Instant.now().plus(2, ChronoUnit.HOURS));
 
         assertTrue(later.compareTo(earlier) > 0);
     }
@@ -97,10 +97,10 @@ class ScheduledJobTest {
         Instant fireTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
         ScheduledJob job1 = new ScheduledJob();
-        job1.setFireAt(fireTime);
+        job1.setRunAt(fireTime);
 
         ScheduledJob job2 = new ScheduledJob();
-        job2.setFireAt(fireTime);
+        job2.setRunAt(fireTime);
 
         assertEquals(0, job1.compareTo(job2));
     }
@@ -108,12 +108,12 @@ class ScheduledJobTest {
     @Test
     void compareTo_usesEffectiveFireAt() {
         ScheduledJob job1 = new ScheduledJob();
-        job1.setFireAt(Instant.now().plus(2, ChronoUnit.HOURS));
-        job1.setEffectiveFireAt(Instant.now().plus(1, ChronoUnit.HOURS)); // Earlier effective
+        job1.setRunAt(Instant.now().plus(2, ChronoUnit.HOURS));
+        job1.setEffectiveRunAt(Instant.now().plus(1, ChronoUnit.HOURS)); // Earlier effective
 
         ScheduledJob job2 = new ScheduledJob();
-        job2.setFireAt(Instant.now().plus(1, ChronoUnit.HOURS));
-        job2.setEffectiveFireAt(Instant.now().plus(2, ChronoUnit.HOURS)); // Later effective
+        job2.setRunAt(Instant.now().plus(1, ChronoUnit.HOURS));
+        job2.setEffectiveRunAt(Instant.now().plus(2, ChronoUnit.HOURS)); // Later effective
 
         assertTrue(job1.compareTo(job2) < 0); // job1 should be first (earlier effective)
     }
@@ -124,9 +124,9 @@ class ScheduledJobTest {
 
         job.setJobKey("test-key");
         job.setKeyPolicy(KeyPolicy.REPLACE);
-        job.setSleepStart(SleepStart.PREV);
-        job.setSleepDuration("PT1H");
-        job.setSleepRepeat(5);
+        job.setWaitStart(WaitStart.PREV);
+        job.setWaitDuration("PT1H");
+        job.setWaitRepeat(5);
         job.setCronExpression("0 0 * * *");
         job.setDestinationTopic("output-topic");
         job.setState(JobState.ACQUIRED);
@@ -134,9 +134,9 @@ class ScheduledJobTest {
 
         assertEquals("test-key", job.getJobKey());
         assertEquals(KeyPolicy.REPLACE, job.getKeyPolicy());
-        assertEquals(SleepStart.PREV, job.getSleepStart());
-        assertEquals("PT1H", job.getSleepDuration());
-        assertEquals(5, job.getSleepRepeat());
+        assertEquals(WaitStart.PREV, job.getWaitStart());
+        assertEquals("PT1H", job.getWaitDuration());
+        assertEquals(5, job.getWaitRepeat());
         assertEquals("0 0 * * *", job.getCronExpression());
         assertEquals("output-topic", job.getDestinationTopic());
         assertEquals(JobState.ACQUIRED, job.getState());
@@ -151,33 +151,33 @@ class ScheduledJobTest {
     }
 
     @Test
-    void isRepeating_sleepRepeatZero_returnsTrue() {
+    void isRepeating_waitRepeatZero_returnsTrue() {
         ScheduledJob job = new ScheduledJob();
-        job.setSleepRepeat(0);
+        job.setWaitRepeat(0);
 
         assertTrue(job.isRepeating());
     }
 
     @Test
-    void isRepeating_sleepRepeatNegative_returnsTrue() {
+    void isRepeating_waitRepeatNegative_returnsTrue() {
         ScheduledJob job = new ScheduledJob();
-        job.setSleepRepeat(-1);
+        job.setWaitRepeat(-1);
 
         assertTrue(job.isRepeating());
     }
 
     @Test
-    void isRepeating_sleepRepeatGreaterThanOne_returnsTrue() {
+    void isRepeating_waitRepeatGreaterThanOne_returnsTrue() {
         ScheduledJob job = new ScheduledJob();
-        job.setSleepRepeat(5);
+        job.setWaitRepeat(5);
 
         assertTrue(job.isRepeating());
     }
 
     @Test
-    void isRepeating_sleepRepeatTwo_returnsTrue() {
+    void isRepeating_waitRepeatTwo_returnsTrue() {
         ScheduledJob job = new ScheduledJob();
-        job.setSleepRepeat(2);
+        job.setWaitRepeat(2);
 
         assertTrue(job.isRepeating());
     }

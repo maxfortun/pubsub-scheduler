@@ -7,7 +7,7 @@ import jakarta.ws.rs.core.Response;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import net.maxf.pubsub.scheduler.service.JobQueueService;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -151,8 +151,8 @@ public class JobResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Create a scheduled job",
-        description = "Creates a new scheduled job. Specify timing using one of: fireAt (absolute ISO-8601 timestamp), " +
-            "sleepDuration (ISO-8601 duration like PT30S, PT5M, PT1H, P1D), or cronExpression (5-part cron)."
+        description = "Creates a new scheduled job. Specify timing using one of: runAt (absolute ISO-8601 timestamp), " +
+            "waitDuration (ISO-8601 duration like PT30S, PT5M, PT1H, P1D), or cronExpression (5-part cron)."
     )
     @APIResponses({
         @APIResponse(
@@ -189,21 +189,22 @@ public class JobResource {
         Instant now = Instant.now();
         if (request.cronExpression != null) {
             job.setCronExpression(request.cronExpression.trim());
-            job.setCronMaxCount(request.cronMaxCount != null ? Math.max(0, request.cronMaxCount) : null);
-            job.setCronEnd(request.cronEnd);
-        } else if (request.sleepDuration != null) {
-            job.setSleepDuration(request.sleepDuration.trim());
-            job.setSleepStart(request.sleepStart != null ? request.sleepStart : SleepStart.SELF);
-            job.setSleepRepeat(request.sleepRepeat != null ? Math.max(0, request.sleepRepeat) : 1);
-            Duration d = Duration.parse(request.sleepDuration.trim());
-            job.setFireAt(now.plus(d));
-            job.setEffectiveFireAt(job.getFireAt());
-        } else if (request.fireAt != null) {
-            job.setFireAt(request.fireAt);
-            job.setEffectiveFireAt(request.fireAt);
+            job.setCronRepeat(request.cronRepeat != null ? Math.max(0, request.cronRepeat) : null);
+            job.setCronUntil(request.cronUntil);
+        } else if (request.waitDuration != null) {
+            job.setWaitDuration(request.waitDuration.trim());
+            job.setWaitStart(request.waitStart != null ? request.waitStart : WaitStart.SELF);
+            job.setWaitRepeat(request.waitRepeat != null ? Math.max(0, request.waitRepeat) : 1);
+            job.setWaitUntil(request.waitUntil);
+            Duration d = Duration.parse(request.waitDuration.trim());
+            job.setRunAt(now.plus(d));
+            job.setEffectiveRunAt(job.getRunAt());
+        } else if (request.runAt != null) {
+            job.setRunAt(request.runAt);
+            job.setEffectiveRunAt(request.runAt);
         } else {
-            job.setFireAt(now);
-            job.setEffectiveFireAt(now);
+            job.setRunAt(now);
+            job.setEffectiveRunAt(now);
         }
 
         jobStore.save(job);
@@ -254,20 +255,20 @@ public class JobResource {
             errors.add("maxRetries must be non-negative");
         }
 
-        if (request.sleepDuration != null) {
+        if (request.waitDuration != null) {
             try {
-                Duration.parse(request.sleepDuration.trim());
+                Duration.parse(request.waitDuration.trim());
             } catch (DateTimeParseException e) {
-                errors.add("sleepDuration is not a valid ISO-8601 duration (e.g., PT1H, PT30M, P1D)");
+                errors.add("waitDuration is not a valid ISO-8601 duration (e.g., PT1H, PT30M, P1D)");
             }
         }
 
-        if (request.sleepRepeat != null && request.sleepRepeat < 0) {
-            errors.add("sleepRepeat must be non-negative (0 for infinite)");
+        if (request.waitRepeat != null && request.waitRepeat < 0) {
+            errors.add("waitRepeat must be non-negative (0 for infinite)");
         }
 
-        if (request.cronMaxCount != null && request.cronMaxCount < 0) {
-            errors.add("cronMaxCount must be non-negative");
+        if (request.cronRepeat != null && request.cronRepeat < 0) {
+            errors.add("cronRepeat must be non-negative");
         }
 
         return errors;
@@ -285,25 +286,28 @@ public class JobResource {
         public KeyPolicy keyPolicy;
 
         @Schema(description = "Absolute fire time (ISO-8601)", example = "2024-12-31T23:59:59Z")
-        public Instant fireAt;
+        public Instant runAt;
 
         @Schema(description = "ISO-8601 duration (PT30S=30sec, PT5M=5min, PT1H=1hr, P1D=1day)", example = "PT1H")
-        public String sleepDuration;
+        public String waitDuration;
 
         @Schema(description = "Sleep start reference", example = "SELF")
-        public SleepStart sleepStart;
+        public WaitStart waitStart;
 
         @Schema(description = "Number of times to repeat (0 = infinite)", example = "1")
-        public Integer sleepRepeat;
+        public Integer waitRepeat;
+
+        @Schema(description = "End time for duration-based repeating jobs")
+        public Instant waitUntil;
 
         @Schema(description = "Cron expression for recurring jobs", example = "0 0 * * *")
         public String cronExpression;
 
         @Schema(description = "End time for cron jobs")
-        public Instant cronEnd;
+        public Instant cronUntil;
 
         @Schema(description = "Maximum fire count for cron jobs", example = "10")
-        public Integer cronMaxCount;
+        public Integer cronRepeat;
 
         @Schema(description = "Max retry attempts on failure", example = "3")
         public Integer maxRetries;

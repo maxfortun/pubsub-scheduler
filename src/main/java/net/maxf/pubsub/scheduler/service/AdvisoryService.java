@@ -58,11 +58,11 @@ public class AdvisoryService {
         headers.put("SCHEDULER_JOB_STATE", job.getState().name());
         headers.put("SCHEDULER_DESTINATION", job.getDestinationTopic());
 
-        if (job.getFireAt() != null) {
-            headers.put("SCHEDULER_FIRE_AT", job.getFireAt().toString());
+        if (job.getRunAt() != null) {
+            headers.put("SCHEDULER_FIRE_AT", job.getRunAt().toString());
         }
-        if (job.getEffectiveFireAt() != null) {
-            headers.put("SCHEDULER_EFFECTIVE_FIRE_AT", job.getEffectiveFireAt().toString());
+        if (job.getEffectiveRunAt() != null) {
+            headers.put("SCHEDULER_EFFECTIVE_FIRE_AT", job.getEffectiveRunAt().toString());
         }
         if (job.getPredecessorId() != null) {
             headers.put("SCHEDULER_PREDECESSOR_ID", job.getPredecessorId().toString());
@@ -113,8 +113,8 @@ public class AdvisoryService {
                   "jobKey": %s,
                   "state": "%s",
                   "destination": "%s",
-                  "fireAt": %s,
-                  "effectiveFireAt": %s,
+                  "runAt": %s,
+                  "effectiveRunAt": %s,
                   "retryCount": %d,
                   "maxRetries": %d,
                   "error": %s
@@ -126,8 +126,8 @@ public class AdvisoryService {
                 job.getJobKey() != null ? "\"" + job.getJobKey() + "\"" : "null",
                 job.getState().name(),
                 job.getDestinationTopic(),
-                job.getFireAt() != null ? "\"" + job.getFireAt() + "\"" : "null",
-                job.getEffectiveFireAt() != null ? "\"" + job.getEffectiveFireAt() + "\"" : "null",
+                job.getRunAt() != null ? "\"" + job.getRunAt() + "\"" : "null",
+                job.getEffectiveRunAt() != null ? "\"" + job.getEffectiveRunAt() + "\"" : "null",
                 job.getRetryCount(),
                 job.getMaxRetries(),
                 job.getLastError() != null ? "\"" + job.getLastError() + "\"" : "null"

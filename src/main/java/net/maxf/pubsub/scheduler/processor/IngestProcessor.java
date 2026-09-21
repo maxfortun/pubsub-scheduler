@@ -5,7 +5,7 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
@@ -80,41 +80,41 @@ public class IngestProcessor implements Processor {
         }
 
         if (atStr != null) {
-            job.setFireAt(Instant.parse(atStr));
+            job.setRunAt(Instant.parse(atStr));
         } else if (sleepStr != null) {
             Duration sleep = Duration.parse(sleepStr);
-            job.setFireAt(Instant.now().plus(sleep));
-            job.setSleepDuration(sleepStr);
+            job.setRunAt(Instant.now().plus(sleep));
+            job.setWaitDuration(sleepStr);
         } else if (cronStr != null) {
             // Cron end conditions (mutually exclusive) - validate first
-            String cronEndStr = message.getHeader(HEADER_CRON_END, String.class);
+            String cronUntilStr = message.getHeader(HEADER_CRON_END, String.class);
             Integer cronCount = message.getHeader(HEADER_CRON_COUNT, Integer.class);
-            if (cronEndStr != null && cronCount != null) {
+            if (cronUntilStr != null && cronCount != null) {
                 throw new IllegalArgumentException("SCHEDULER_CRON_END and SCHEDULER_CRON_COUNT are mutually exclusive");
             }
 
             job.setCronExpression(cronStr);
-            job.setFireAt(calculateNextCronFire(cronStr));
+            job.setRunAt(calculateNextCronFire(cronStr));
 
-            if (cronEndStr != null) {
-                job.setCronEnd(Instant.parse(cronEndStr));
+            if (cronUntilStr != null) {
+                job.setCronUntil(Instant.parse(cronUntilStr));
             }
             if (cronCount != null) {
-                job.setCronMaxCount(cronCount);
+                job.setCronRepeat(cronCount);
             }
         } else {
             // Immediate
-            job.setFireAt(Instant.now());
+            job.setRunAt(Instant.now());
         }
 
         // Sleep options (only applies to SLEEP)
-        String sleepStartStr = message.getHeader(HEADER_SLEEP_START, String.class);
-        if (sleepStartStr != null) {
-            job.setSleepStart(SleepStart.valueOf(sleepStartStr.toUpperCase()));
+        String waitStartStr = message.getHeader(HEADER_SLEEP_START, String.class);
+        if (waitStartStr != null) {
+            job.setWaitStart(WaitStart.valueOf(waitStartStr.toUpperCase()));
         }
-        Integer sleepRepeat = message.getHeader(HEADER_SLEEP_REPEAT, Integer.class);
-        if (sleepRepeat != null) {
-            job.setSleepRepeat(sleepRepeat);
+        Integer waitRepeat = message.getHeader(HEADER_SLEEP_REPEAT, Integer.class);
+        if (waitRepeat != null) {
+            job.setWaitRepeat(waitRepeat);
         }
 
         // Key and mode
@@ -152,10 +152,10 @@ public class IngestProcessor implements Processor {
         job.setHeaders(headers);
 
         // Calculate effective fire time (will be adjusted for QUEUE mode if needed)
-        job.setEffectiveFireAt(job.getFireAt());
+        job.setEffectiveRunAt(job.getRunAt());
 
-        LOG.infof("Ingested job %s: destination=%s, fireAt=%s, key=%s, mode=%s",
-                job.getId(), job.getDestinationTopic(), job.getFireAt(),
+        LOG.infof("Ingested job %s: destination=%s, runAt=%s, key=%s, mode=%s",
+                job.getId(), job.getDestinationTopic(), job.getRunAt(),
                 job.getJobKey(), job.getKeyPolicy());
 
         // Apply pre-scheduling transforms (e.g., claim check externalization)

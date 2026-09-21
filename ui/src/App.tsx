@@ -19,7 +19,7 @@ function App() {
   const [timingType, setTimingType] = useState<TimingType>('DURATION');
   const [createForm, setCreateForm] = useState<CreateJobRequest>({
     destinationTopic: '',
-    sleepDuration: 'PT1M',
+    waitDuration: 'PT1M',
     messageValue: '',
   });
   const [creating, setCreating] = useState(false);
@@ -92,15 +92,15 @@ function App() {
     }
 
     if (timingType === 'AT') {
-      if (!createForm.fireAt) {
+      if (!createForm.runAt) {
         errors.push('Fire time is required for AT timing');
       }
     } else if (timingType === 'DURATION') {
-      if (!createForm.sleepDuration) {
+      if (!createForm.waitDuration) {
         errors.push('Duration is required');
       } else {
         const durationPattern = /^P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$/i;
-        if (!durationPattern.test(createForm.sleepDuration.trim())) {
+        if (!durationPattern.test(createForm.waitDuration.trim())) {
           errors.push('Duration must be ISO 8601 format (e.g., PT30S, PT5M, PT1H, P1D)');
         }
       }
@@ -122,12 +122,12 @@ function App() {
     setTimingType(type);
     setCreateForm(f => ({
       ...f,
-      fireAt: undefined,
-      sleepDuration: type === 'DURATION' ? 'PT1M' : undefined,
-      sleepRepeat: undefined,
+      runAt: undefined,
+      waitDuration: type === 'DURATION' ? 'PT1M' : undefined,
+      waitRepeat: undefined,
       cronExpression: undefined,
-      cronEnd: undefined,
-      cronMaxCount: undefined,
+      cronUntil: undefined,
+      cronRepeat: undefined,
     }));
   };
 
@@ -147,7 +147,7 @@ function App() {
       await createJob(createForm);
       setShowCreateForm(false);
       setTimingType('DURATION');
-      setCreateForm({ destinationTopic: '', sleepDuration: 'PT1M', messageValue: '' });
+      setCreateForm({ destinationTopic: '', waitDuration: 'PT1M', messageValue: '' });
       loadData();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create job');
@@ -367,7 +367,7 @@ function App() {
                   </td>
                   <td className="job-key">{job.jobKey || '-'}</td>
                   <td className="destination">{job.destinationTopic}</td>
-                  <td>{formatDate(job.effectiveFireAt)}</td>
+                  <td>{formatDate(job.effectiveRunAt)}</td>
                   <td>{formatDate(job.createdAt)}</td>
                   <td className="actions-cell">
                     {isCancellable(job.state) && (
@@ -439,11 +439,11 @@ function App() {
               </div>
               <div className="detail-row">
                 <label>Fire At:</label>
-                <span>{formatDate(selectedJob.fireAt)}</span>
+                <span>{formatDate(selectedJob.runAt)}</span>
               </div>
               <div className="detail-row">
                 <label>Effective Fire At:</label>
-                <span>{formatDate(selectedJob.effectiveFireAt)}</span>
+                <span>{formatDate(selectedJob.effectiveRunAt)}</span>
               </div>
               <div className="detail-row">
                 <label>Key Policy:</label>
@@ -455,19 +455,19 @@ function App() {
                   <span className="monospace">{selectedJob.predecessorId}</span>
                 </div>
               )}
-              {selectedJob.sleepDuration && (
+              {selectedJob.waitDuration && (
                 <>
                   <div className="detail-row">
                     <label>Sleep Duration:</label>
-                    <span>{selectedJob.sleepDuration}</span>
+                    <span>{selectedJob.waitDuration}</span>
                   </div>
                   <div className="detail-row">
                     <label>Sleep Start:</label>
-                    <span>{selectedJob.sleepStart}</span>
+                    <span>{selectedJob.waitStart}</span>
                   </div>
                   <div className="detail-row">
                     <label>Sleep Repeat:</label>
-                    <span>{selectedJob.sleepRepeat}</span>
+                    <span>{selectedJob.waitRepeat}</span>
                   </div>
                 </>
               )}
@@ -479,7 +479,7 @@ function App() {
                   </div>
                   <div className="detail-row">
                     <label>Fire Count:</label>
-                    <span>{selectedJob.cronFireCount} / {selectedJob.cronMaxCount || 'unlimited'}</span>
+                    <span>{selectedJob.cronRunCount} / {selectedJob.cronRepeat || 'unlimited'}</span>
                   </div>
                 </>
               )}

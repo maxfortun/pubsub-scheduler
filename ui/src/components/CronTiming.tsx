@@ -6,16 +6,16 @@ interface CronTimingProps {
 }
 
 export function CronTiming({ form, onChange }: CronTimingProps) {
-  const handleEndDateChange = (value: string) => {
+  const handleUntilChange = (value: string) => {
     if (value) {
-      onChange({ cronEnd: new Date(value).toISOString() });
+      onChange({ cronUntil: new Date(value).toISOString() });
     } else {
-      onChange({ cronEnd: undefined });
+      onChange({ cronUntil: undefined });
     }
   };
 
-  const cronEndLocal = form.cronEnd
-    ? new Date(form.cronEnd).toISOString().slice(0, 16)
+  const cronUntilLocal = form.cronUntil
+    ? new Date(form.cronUntil).toISOString().slice(0, 16)
     : '';
 
   return (
@@ -45,22 +45,22 @@ export function CronTiming({ form, onChange }: CronTimingProps) {
       </div>
       <div className="form-row">
         <div className="form-group">
-          <label>Max Fire Count</label>
+          <label>Repeat Count</label>
           <input
             type="number"
-            value={form.cronMaxCount ?? ''}
-            onChange={e => onChange({ cronMaxCount: e.target.value ? parseInt(e.target.value) : undefined })}
+            value={form.cronRepeat ?? ''}
+            onChange={e => onChange({ cronRepeat: e.target.value ? parseInt(e.target.value) : undefined })}
             placeholder="unlimited"
             min="0"
           />
           <div className="field-hint">0 or empty = unlimited</div>
         </div>
         <div className="form-group">
-          <label>End Date (optional)</label>
+          <label>Until</label>
           <input
             type="datetime-local"
-            value={cronEndLocal}
-            onChange={e => handleEndDateChange(e.target.value)}
+            value={cronUntilLocal}
+            onChange={e => handleUntilChange(e.target.value)}
           />
           <div className="field-hint">Stop scheduling after this time</div>
         </div>

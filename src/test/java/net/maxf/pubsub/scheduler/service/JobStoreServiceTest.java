@@ -325,8 +325,8 @@ class JobStoreServiceTest {
     private ScheduledJob createJob() {
         ScheduledJob job = new ScheduledJob();
         job.setDestinationTopic("output-topic");
-        job.setFireAt(Instant.now());
-        job.setEffectiveFireAt(Instant.now());
+        job.setRunAt(Instant.now());
+        job.setEffectiveRunAt(Instant.now());
         return job;
     }
 }

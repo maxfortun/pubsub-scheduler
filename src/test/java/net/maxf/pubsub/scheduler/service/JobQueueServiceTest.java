@@ -23,9 +23,9 @@ class JobQueueServiceTest {
         @Test
         void shouldRepeat_noSleepDurationNoCron_returnsFalse() {
             ScheduledJob job = createJob();
-            job.setSleepDuration(null);
+            job.setWaitDuration(null);
             job.setCronExpression(null);
-            job.setSleepRepeat(5);
+            job.setWaitRepeat(5);
 
             assertFalse(testShouldRepeat(job));
         }
@@ -34,7 +34,7 @@ class JobQueueServiceTest {
         void shouldRepeat_cronExpression_returnsTrue() {
             ScheduledJob job = createJob();
             job.setCronExpression("0 0 * * *");
-            job.setSleepDuration(null);
+            job.setWaitDuration(null);
 
             assertTrue(testShouldRepeat(job));
         }
@@ -43,7 +43,7 @@ class JobQueueServiceTest {
         void shouldRepeat_cronExpressionPastEnd_returnsFalse() {
             ScheduledJob job = createJob();
             job.setCronExpression("0 0 * * *");
-            job.setCronEnd(Instant.now().minusSeconds(1)); // past
+            job.setCronUntil(Instant.now().minusSeconds(1)); // past
 
             assertFalse(testShouldRepeatCron(job));
         }
@@ -52,8 +52,8 @@ class JobQueueServiceTest {
         void shouldRepeat_cronExpressionReachedMaxCount_returnsFalse() {
             ScheduledJob job = createJob();
             job.setCronExpression("0 0 * * *");
-            job.setCronMaxCount(5);
-            job.setCronFireCount(5);
+            job.setCronRepeat(5);
+            job.setCronRunCount(5);
 
             assertFalse(testShouldRepeatCron(job));
         }
@@ -62,8 +62,8 @@ class JobQueueServiceTest {
         void shouldRepeat_cronExpressionBelowMaxCount_returnsTrue() {
             ScheduledJob job = createJob();
             job.setCronExpression("0 0 * * *");
-            job.setCronMaxCount(5);
-            job.setCronFireCount(3);
+            job.setCronRepeat(5);
+            job.setCronRunCount(3);
 
             assertTrue(testShouldRepeatCron(job));
         }
@@ -71,53 +71,53 @@ class JobQueueServiceTest {
         @Test
         void shouldRepeat_noSleepDuration_returnsFalse() {
             ScheduledJob job = createJob();
-            job.setSleepDuration(null);
-            job.setSleepRepeat(5);
+            job.setWaitDuration(null);
+            job.setWaitRepeat(5);
 
             assertFalse(testShouldRepeat(job));
         }
 
         @Test
-        void shouldRepeat_sleepRepeatOne_returnsFalse() {
+        void shouldRepeat_waitRepeatOne_returnsFalse() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(1);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(1);
 
             assertFalse(testShouldRepeat(job));
         }
 
         @Test
-        void shouldRepeat_sleepRepeatZero_returnsTrue() {
+        void shouldRepeat_waitRepeatZero_returnsTrue() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(0);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(0);
 
             assertTrue(testShouldRepeat(job));
         }
 
         @Test
-        void shouldRepeat_sleepRepeatNegative_returnsTrue() {
+        void shouldRepeat_waitRepeatNegative_returnsTrue() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(-1);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(-1);
 
             assertTrue(testShouldRepeat(job));
         }
 
         @Test
-        void shouldRepeat_sleepRepeatGreaterThanOne_returnsTrue() {
+        void shouldRepeat_waitRepeatGreaterThanOne_returnsTrue() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(5);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(5);
 
             assertTrue(testShouldRepeat(job));
         }
 
         @Test
-        void shouldRepeat_sleepRepeatTwo_returnsTrue() {
+        void shouldRepeat_waitRepeatTwo_returnsTrue() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(2);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(2);
 
             assertTrue(testShouldRepeat(job));
         }
@@ -129,22 +129,22 @@ class JobQueueServiceTest {
         @Test
         void scheduleNextRepetition_setsNewFireAt() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(0);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(0);
             Instant before = Instant.now();
 
             testScheduleNextRepetition(job);
 
             Instant expectedMin = before.plus(Duration.ofMinutes(15));
-            assertTrue(job.getFireAt().isAfter(expectedMin.minusSeconds(1)));
-            assertTrue(job.getFireAt().isBefore(expectedMin.plusSeconds(5)));
+            assertTrue(job.getRunAt().isAfter(expectedMin.minusSeconds(1)));
+            assertTrue(job.getRunAt().isBefore(expectedMin.plusSeconds(5)));
         }
 
         @Test
         void scheduleNextRepetition_setsStateToPending() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(0);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(0);
             job.setState(JobState.RUNNING);
 
             testScheduleNextRepetition(job);
@@ -155,8 +155,8 @@ class JobQueueServiceTest {
         @Test
         void scheduleNextRepetition_resetsRetryCount() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(0);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(0);
             job.setRetryCount(3);
 
             testScheduleNextRepetition(job);
@@ -167,34 +167,34 @@ class JobQueueServiceTest {
         @Test
         void scheduleNextRepetition_decrementsPositiveRepeat() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(5);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(5);
 
             testScheduleNextRepetition(job);
 
-            assertEquals(4, job.getSleepRepeat());
+            assertEquals(4, job.getWaitRepeat());
         }
 
         @Test
         void scheduleNextRepetition_zeroRepeatStaysZero() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(0);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(0);
 
             testScheduleNextRepetition(job);
 
-            assertEquals(0, job.getSleepRepeat());
+            assertEquals(0, job.getWaitRepeat());
         }
 
         @Test
         void scheduleNextRepetition_negativeRepeatStaysNegative() {
             ScheduledJob job = createJob();
-            job.setSleepDuration("PT15M");
-            job.setSleepRepeat(-1);
+            job.setWaitDuration("PT15M");
+            job.setWaitRepeat(-1);
 
             testScheduleNextRepetition(job);
 
-            assertEquals(-1, job.getSleepRepeat());
+            assertEquals(-1, job.getWaitRepeat());
         }
 
     }
@@ -203,8 +203,8 @@ class JobQueueServiceTest {
         ScheduledJob job = new ScheduledJob();
         job.setId(UUID.randomUUID());
         job.setDestinationTopic("test-topic");
-        job.setFireAt(Instant.now());
-        job.setEffectiveFireAt(job.getFireAt());
+        job.setRunAt(Instant.now());
+        job.setEffectiveRunAt(job.getRunAt());
         job.setState(JobState.PENDING);
         return job;
     }
@@ -213,35 +213,35 @@ class JobQueueServiceTest {
         if (job.getCronExpression() != null) {
             return testShouldRepeatCron(job);
         }
-        if (job.getSleepDuration() == null) {
+        if (job.getWaitDuration() == null) {
             return false;
         }
-        int repeat = job.getSleepRepeat();
+        int repeat = job.getWaitRepeat();
         return repeat <= 0 || repeat > 1;
     }
 
     private boolean testShouldRepeatCron(ScheduledJob job) {
-        if (job.getCronEnd() != null && Instant.now().isAfter(job.getCronEnd())) {
+        if (job.getCronUntil() != null && Instant.now().isAfter(job.getCronUntil())) {
             return false;
         }
-        if (job.getCronMaxCount() != null && job.getCronFireCount() >= job.getCronMaxCount()) {
+        if (job.getCronRepeat() != null && job.getCronRunCount() >= job.getCronRepeat()) {
             return false;
         }
         return true;
     }
 
     private void testScheduleNextRepetition(ScheduledJob job) {
-        Duration sleepDuration = Duration.parse(job.getSleepDuration());
-        Instant nextFire = Instant.now().plus(sleepDuration);
+        Duration waitDuration = Duration.parse(job.getWaitDuration());
+        Instant nextFire = Instant.now().plus(waitDuration);
 
-        job.setFireAt(nextFire);
-        job.setEffectiveFireAt(nextFire);
+        job.setRunAt(nextFire);
+        job.setEffectiveRunAt(nextFire);
         job.setState(JobState.PENDING);
         job.setUpdatedAt(Instant.now());
         job.setRetryCount(0);
 
-        if (job.getSleepRepeat() > 0) {
-            job.setSleepRepeat(job.getSleepRepeat() - 1);
+        if (job.getWaitRepeat() > 0) {
+            job.setWaitRepeat(job.getWaitRepeat() - 1);
         }
     }
 }

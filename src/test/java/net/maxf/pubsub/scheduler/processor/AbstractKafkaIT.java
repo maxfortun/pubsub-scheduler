@@ -4,7 +4,7 @@ import jakarta.inject.Inject;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -129,7 +129,7 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
             assertEquals(futureTime.truncatedTo(ChronoUnit.MILLIS),
-                    jobs.get(0).getFireAt().truncatedTo(ChronoUnit.MILLIS));
+                    jobs.get(0).getRunAt().truncatedTo(ChronoUnit.MILLIS));
         }
 
         @Test
@@ -149,9 +149,9 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
             Instant after = Instant.now().plus(30, ChronoUnit.MINUTES);
-            assertTrue(jobs.get(0).getFireAt().isAfter(before.minusSeconds(5)));
-            assertTrue(jobs.get(0).getFireAt().isBefore(after.plusSeconds(5)));
-            assertEquals("PT30M", jobs.get(0).getSleepDuration());
+            assertTrue(jobs.get(0).getRunAt().isAfter(before.minusSeconds(5)));
+            assertTrue(jobs.get(0).getRunAt().isBefore(after.plusSeconds(5)));
+            assertEquals("PT30M", jobs.get(0).getWaitDuration());
         }
 
         @Test
@@ -170,8 +170,8 @@ abstract class AbstractKafkaIT {
             // Job will fire immediately and complete - find in any state
             List<ScheduledJob> jobs = jobStore.findJobs(null, jobKey, 10);
             assertFalse(jobs.isEmpty(), "Job should be created");
-            assertTrue(jobs.get(0).getFireAt().isAfter(before.minusSeconds(5)));
-            assertTrue(jobs.get(0).getFireAt().isBefore(Instant.now().plusSeconds(5)));
+            assertTrue(jobs.get(0).getRunAt().isAfter(before.minusSeconds(5)));
+            assertTrue(jobs.get(0).getRunAt().isBefore(Instant.now().plusSeconds(5)));
         }
 
         @Test
@@ -211,10 +211,10 @@ abstract class AbstractKafkaIT {
             ScheduledJob job = jobs.get(0);
             assertEquals("* * * * *", job.getCronExpression());
             // Should fire within the next ~2 minutes (allowing for timing variations)
-            assertTrue(job.getFireAt().isAfter(before.minusSeconds(5)),
-                "fireAt should be after test start: " + job.getFireAt() + " vs " + before);
-            assertTrue(job.getFireAt().isBefore(before.plusSeconds(120)),
-                "fireAt should be within 2 minutes: " + job.getFireAt() + " vs " + before.plusSeconds(120));
+            assertTrue(job.getRunAt().isAfter(before.minusSeconds(5)),
+                "runAt should be after test start: " + job.getRunAt() + " vs " + before);
+            assertTrue(job.getRunAt().isBefore(before.plusSeconds(120)),
+                "runAt should be within 2 minutes: " + job.getRunAt() + " vs " + before.plusSeconds(120));
         }
     }
 
@@ -224,7 +224,7 @@ abstract class AbstractKafkaIT {
 
         @Test
         @Order(1)
-        void cronEndAndCronCount_mutuallyExclusive_sendsToDeadLetterQueue() throws Exception {
+        void cronUntilAndCronCount_mutuallyExclusive_sendsToDeadLetterQueue() throws Exception {
             String correlationId = "dlq-cron-exclusive-" + UUID.randomUUID();
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
@@ -248,7 +248,7 @@ abstract class AbstractKafkaIT {
 
         @Test
         @Order(1)
-        void sleepStartSelf_setsSleepStartToSelf() throws Exception {
+        void waitStartSelf_setsWaitStartToSelf() throws Exception {
             String jobKey = "sleep-start-self-" + UUID.randomUUID();
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
@@ -262,12 +262,12 @@ abstract class AbstractKafkaIT {
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
-            assertEquals(SleepStart.SELF, jobs.get(0).getSleepStart());
+            assertEquals(WaitStart.SELF, jobs.get(0).getWaitStart());
         }
 
         @Test
         @Order(2)
-        void sleepStartPrev_setsSleepStartToPrev() throws Exception {
+        void waitStartPrev_setsWaitStartToPrev() throws Exception {
             String jobKey = "sleep-start-prev-" + UUID.randomUUID();
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
@@ -281,12 +281,12 @@ abstract class AbstractKafkaIT {
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
-            assertEquals(SleepStart.PREV, jobs.get(0).getSleepStart());
+            assertEquals(WaitStart.PREV, jobs.get(0).getWaitStart());
         }
 
         @Test
         @Order(3)
-        void sleepRepeat_setsSleepRepeatCount() throws Exception {
+        void waitRepeat_setsSleepRepeatCount() throws Exception {
             String jobKey = "sleep-repeat-" + UUID.randomUUID();
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
@@ -300,7 +300,7 @@ abstract class AbstractKafkaIT {
 
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty());
-            assertEquals(5, jobs.get(0).getSleepRepeat());
+            assertEquals(5, jobs.get(0).getWaitRepeat());
         }
     }
 
@@ -673,7 +673,7 @@ abstract class AbstractKafkaIT {
 
         @Test
         @Order(3)
-        void invalidSleepStart_sendsToDeadLetterQueue() throws Exception {
+        void invalidWaitStart_sendsToDeadLetterQueue() throws Exception {
             String correlationId = "dlq-invalid-sleepstart-" + UUID.randomUUID();
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
@@ -729,7 +729,7 @@ abstract class AbstractKafkaIT {
             ScheduledJob job = jobs.get(0);
 
             assertEquals(OUTPUT_TOPIC, job.getDestinationTopic());
-            assertEquals(targetTime.truncatedTo(ChronoUnit.MILLIS), job.getFireAt().truncatedTo(ChronoUnit.MILLIS));
+            assertEquals(targetTime.truncatedTo(ChronoUnit.MILLIS), job.getRunAt().truncatedTo(ChronoUnit.MILLIS));
             assertEquals(jobKey, job.getJobKey());
             assertEquals(KeyPolicy.REPLACE, job.getKeyPolicy());
             assertEquals(5, job.getMaxRetries());
@@ -758,9 +758,9 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty());
             ScheduledJob job = jobs.get(0);
 
-            assertEquals("PT15M", job.getSleepDuration());
-            assertEquals(SleepStart.PREV, job.getSleepStart());
-            assertEquals(10, job.getSleepRepeat());
+            assertEquals("PT15M", job.getWaitDuration());
+            assertEquals(WaitStart.PREV, job.getWaitStart());
+            assertEquals(10, job.getWaitRepeat());
             assertEquals(KeyPolicy.QUEUE, job.getKeyPolicy());
         }
     }
@@ -791,7 +791,7 @@ abstract class AbstractKafkaIT {
                        job.getState() == JobState.PENDING ||
                        job.getState() == JobState.RUNNING,
                 "Immediate job should fire. State: " + job.getState());
-            assertNotNull(job.getFireAt(), "Fire time should be set");
+            assertNotNull(job.getRunAt(), "Fire time should be set");
         }
 
         @Test
@@ -837,7 +837,7 @@ abstract class AbstractKafkaIT {
 
         @Test
         @Order(3)
-        void sleepRepeat_storedCorrectly() throws Exception {
+        void waitRepeat_storedCorrectly() throws Exception {
             String jobKey = "repeat-store-test-" + UUID.randomUUID();
 
             // Send job with sleep and repeat
@@ -854,8 +854,8 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty(), "Job should be created");
             ScheduledJob job = jobs.get(0);
-            assertEquals(10, job.getSleepRepeat(), "Repeat count should be 10");
-            assertEquals("PT5M", job.getSleepDuration(), "Sleep duration should be PT5M");
+            assertEquals(10, job.getWaitRepeat(), "Repeat count should be 10");
+            assertEquals("PT5M", job.getWaitDuration(), "Sleep duration should be PT5M");
         }
 
         @Test
@@ -878,9 +878,9 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty(), "Job should exist");
             ScheduledJob job = jobs.get(0);
             assertEquals(JobState.PENDING, job.getState(), "Job should be PENDING");
-            assertTrue(job.getFireAt().isAfter(Instant.now()), "Fire time should be in the future");
+            assertTrue(job.getRunAt().isAfter(Instant.now()), "Fire time should be in the future");
             // Allow 5 second tolerance for timing differences
-            assertTrue(Math.abs(job.getFireAt().getEpochSecond() - futureTime.getEpochSecond()) < 5,
+            assertTrue(Math.abs(job.getRunAt().getEpochSecond() - futureTime.getEpochSecond()) < 5,
                 "Fire time should match requested time");
         }
 
@@ -903,7 +903,7 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty(), "Job should be created");
             ScheduledJob job = jobs.get(0);
             assertEquals("0 0 * * *", job.getCronExpression(), "CRON expression should be stored");
-            assertNotNull(job.getFireAt(), "Fire time should be calculated");
+            assertNotNull(job.getRunAt(), "Fire time should be calculated");
         }
     }
 
@@ -1139,8 +1139,8 @@ abstract class AbstractKafkaIT {
             // Fire time should be within the next hour
             Instant now = Instant.now();
             Instant maxFireTime = now.plus(1, ChronoUnit.HOURS).plus(1, ChronoUnit.MINUTES);
-            assertTrue(job.getFireAt().isBefore(maxFireTime),
-                "CRON job fire time should be within next hour. FireAt: " + job.getFireAt());
+            assertTrue(job.getRunAt().isBefore(maxFireTime),
+                "CRON job fire time should be within next hour. FireAt: " + job.getRunAt());
         }
 
         @Test
@@ -1161,8 +1161,8 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty(), "CRON job should exist");
             ScheduledJob job = jobs.get(0);
-            assertEquals(10, job.getCronMaxCount(), "CRON max count should be 10");
-            assertEquals(0, job.getCronFireCount(), "Initial fire count should be 0");
+            assertEquals(10, job.getCronRepeat(), "CRON max count should be 10");
+            assertEquals(0, job.getCronRunCount(), "Initial fire count should be 0");
         }
 
         @Test
@@ -1184,8 +1184,8 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
             assertFalse(jobs.isEmpty(), "CRON job should exist");
             ScheduledJob job = jobs.get(0);
-            assertNotNull(job.getCronEnd(), "CRON end time should be set");
-            assertTrue(Math.abs(job.getCronEnd().getEpochSecond() - endTime.getEpochSecond()) < 5,
+            assertNotNull(job.getCronUntil(), "CRON end time should be set");
+            assertTrue(Math.abs(job.getCronUntil().getEpochSecond() - endTime.getEpochSecond()) < 5,
                 "CRON end time should match requested time");
         }
     }

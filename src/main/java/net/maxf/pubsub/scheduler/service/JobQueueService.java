@@ -132,7 +132,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
     private void enqueueInternal(ScheduledJob job) {
         if (enqueuedJobIds.add(job.getId())) {
             delayQueue.put(job);
-            LOG.debugf("Job %s enqueued, fire at %s", job.getId(), job.getEffectiveFireAt());
+            LOG.debugf("Job %s enqueued, fire at %s", job.getId(), job.getEffectiveRunAt());
         }
     }
 
@@ -197,8 +197,8 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             return shouldRepeatCron(job);
         }
         // Check SLEEP-based repeat
-        if (job.getSleepDuration() != null) {
-            int repeat = job.getSleepRepeat();
+        if (job.getWaitDuration() != null) {
+            int repeat = job.getWaitRepeat();
             return repeat <= 0 || repeat > 1;
         }
         return false;
@@ -206,11 +206,11 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
 
     private boolean shouldRepeatCron(ScheduledJob job) {
         // Check if past end time
-        if (job.getCronEnd() != null && Instant.now().isAfter(job.getCronEnd())) {
+        if (job.getCronUntil() != null && Instant.now().isAfter(job.getCronUntil())) {
             return false;
         }
         // Check if reached max count
-        if (job.getCronMaxCount() != null && job.getCronFireCount() >= job.getCronMaxCount()) {
+        if (job.getCronRepeat() != null && job.getCronRunCount() >= job.getCronRepeat()) {
             return false;
         }
         return true;
@@ -222,17 +222,17 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
         if (job.getCronExpression() != null) {
             nextFire = net.maxf.pubsub.scheduler.processor.IngestProcessor
                 .calculateNextCronFireFrom(job.getCronExpression(), Instant.now());
-            job.setCronFireCount(job.getCronFireCount() + 1);
+            job.setCronRunCount(job.getCronRunCount() + 1);
         } else {
-            Duration sleepDuration = Duration.parse(job.getSleepDuration());
-            nextFire = Instant.now().plus(sleepDuration);
-            if (job.getSleepRepeat() > 0) {
-                job.setSleepRepeat(job.getSleepRepeat() - 1);
+            Duration waitDuration = Duration.parse(job.getWaitDuration());
+            nextFire = Instant.now().plus(waitDuration);
+            if (job.getWaitRepeat() > 0) {
+                job.setWaitRepeat(job.getWaitRepeat() - 1);
             }
         }
 
-        job.setFireAt(nextFire);
-        job.setEffectiveFireAt(nextFire);
+        job.setRunAt(nextFire);
+        job.setEffectiveRunAt(nextFire);
         job.setState(JobState.PENDING);
         job.setUpdatedAt(Instant.now());
         job.setRetryCount(0);

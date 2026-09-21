@@ -27,8 +27,8 @@ class JobPreloadServiceTest {
                   "jobKey": "scheduler-heartbeat",
                   "destination": "scheduler-advisory",
                   "keyPolicy": "SKIP",
-                  "sleepDuration": "PT15M",
-                  "sleepRepeat": 0,
+                  "waitDuration": "PT15M",
+                  "waitRepeat": 0,
                   "headers": {"SCHEDULER_INTERNAL_JOB": "true"},
                   "body": "{\\"type\\":\\"SCHEDULER_HEARTBEAT\\"}",
                   "maxRetries": 3
@@ -40,8 +40,8 @@ class JobPreloadServiceTest {
             assertEquals("scheduler-heartbeat", def.jobKey());
             assertEquals("scheduler-advisory", def.destination());
             assertEquals("SKIP", def.keyPolicy());
-            assertEquals("PT15M", def.sleepDuration());
-            assertEquals(0, def.sleepRepeat());
+            assertEquals("PT15M", def.waitDuration());
+            assertEquals(0, def.waitRepeat());
             assertEquals("true", def.headers().get("SCHEDULER_INTERNAL_JOB"));
             assertEquals(3, def.maxRetries());
         }
@@ -60,8 +60,8 @@ class JobPreloadServiceTest {
             assertEquals("simple-job", def.jobKey());
             assertEquals("output-topic", def.destination());
             assertNull(def.keyPolicy());
-            assertNull(def.sleepDuration());
-            assertNull(def.sleepRepeat());
+            assertNull(def.waitDuration());
+            assertNull(def.waitRepeat());
             assertNull(def.headers());
             assertNull(def.maxRetries());
         }
@@ -72,14 +72,14 @@ class JobPreloadServiceTest {
                 [{
                   "jobKey": "infinite-job",
                   "destination": "topic",
-                  "sleepDuration": "PT1H",
-                  "sleepRepeat": 0
+                  "waitDuration": "PT1H",
+                  "waitRepeat": 0
                 }]
                 """;
 
             JobPreloadService.JobDefinition def = parseFirstDefinition(json);
 
-            assertEquals(0, def.sleepRepeat());
+            assertEquals(0, def.waitRepeat());
         }
 
         @Test
@@ -88,14 +88,14 @@ class JobPreloadServiceTest {
                 [{
                   "jobKey": "finite-job",
                   "destination": "topic",
-                  "sleepDuration": "PT1H",
-                  "sleepRepeat": 10
+                  "waitDuration": "PT1H",
+                  "waitRepeat": 10
                 }]
                 """;
 
             JobPreloadService.JobDefinition def = parseFirstDefinition(json);
 
-            assertEquals(10, def.sleepRepeat());
+            assertEquals(10, def.waitRepeat());
         }
 
         @Test
@@ -104,8 +104,8 @@ class JobPreloadServiceTest {
                 [{
                   "jobKey": "cron-job",
                   "destination": "topic",
-                  "sleepDuration": "PT1H",
-                  "sleepRepeat": 0,
+                  "waitDuration": "PT1H",
+                  "waitRepeat": 0,
                   "headers": {"SCHEDULER_CRON": "0 0 * * *"}
                 }]
                 """;

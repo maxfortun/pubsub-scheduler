@@ -8,20 +8,20 @@ interface AtTimingProps {
 export function AtTiming({ form, onChange }: AtTimingProps) {
   const handleDateChange = (value: string) => {
     if (value) {
-      onChange({ fireAt: new Date(value).toISOString() });
+      onChange({ runAt: new Date(value).toISOString() });
     } else {
-      onChange({ fireAt: undefined });
+      onChange({ runAt: undefined });
     }
   };
 
-  const localValue = form.fireAt
-    ? new Date(form.fireAt).toISOString().slice(0, 16)
+  const localValue = form.runAt
+    ? new Date(form.runAt).toISOString().slice(0, 16)
     : '';
 
   return (
     <div className="timing-section">
       <div className="form-group">
-        <label>Fire At (absolute time)</label>
+        <label>Run At (absolute time)</label>
         <input
           type="datetime-local"
           value={localValue}

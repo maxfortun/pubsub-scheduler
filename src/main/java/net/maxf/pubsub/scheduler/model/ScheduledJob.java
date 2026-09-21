@@ -11,16 +11,17 @@ public class ScheduledJob implements Delayed {
     private UUID id;
     private String jobKey;
     private KeyPolicy keyPolicy;
-    private SleepStart sleepStart;
-    private String sleepDuration;
-    private int sleepRepeat;
+    private WaitStart waitStart;
+    private String waitDuration;
+    private int waitRepeat;
+    private Instant waitUntil;
     private String cronExpression;
-    private Instant cronEnd;
-    private Integer cronMaxCount;
-    private int cronFireCount;
+    private Instant cronUntil;
+    private Integer cronRepeat;
+    private int cronRunCount;
 
-    private Instant fireAt;
-    private Instant effectiveFireAt;
+    private Instant runAt;
+    private Instant effectiveRunAt;
     private Instant arrivedAt;
 
     private String destinationTopic;
@@ -48,8 +49,8 @@ public class ScheduledJob implements Delayed {
         this.id = UUID.randomUUID();
         this.state = JobState.PENDING;
         this.keyPolicy = KeyPolicy.QUEUE;
-        this.sleepStart = SleepStart.SELF;
-        this.sleepRepeat = 1;
+        this.waitStart = WaitStart.SELF;
+        this.waitRepeat = 1;
         this.retryCount = 0;
         this.version = 0;
         this.createdAt = Instant.now();
@@ -72,8 +73,8 @@ public class ScheduledJob implements Delayed {
     }
 
     private Instant getFireTimeOrNow() {
-        if (effectiveFireAt != null) return effectiveFireAt;
-        if (fireAt != null) return fireAt;
+        if (effectiveRunAt != null) return effectiveRunAt;
+        if (runAt != null) return runAt;
         return Instant.now();
     }
 
@@ -88,36 +89,39 @@ public class ScheduledJob implements Delayed {
     public KeyPolicy getKeyPolicy() { return keyPolicy; }
     public void setKeyPolicy(KeyPolicy keyPolicy) { this.keyPolicy = keyPolicy; }
 
-    public SleepStart getSleepStart() { return sleepStart; }
-    public void setSleepStart(SleepStart sleepStart) { this.sleepStart = sleepStart; }
+    public WaitStart getWaitStart() { return waitStart; }
+    public void setWaitStart(WaitStart waitStart) { this.waitStart = waitStart; }
 
     public String getCronExpression() { return cronExpression; }
     public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
 
-    public String getSleepDuration() { return sleepDuration; }
-    public void setSleepDuration(String sleepDuration) { this.sleepDuration = sleepDuration; }
+    public String getWaitDuration() { return waitDuration; }
+    public void setWaitDuration(String waitDuration) { this.waitDuration = waitDuration; }
 
-    public int getSleepRepeat() { return sleepRepeat; }
-    public void setSleepRepeat(int sleepRepeat) { this.sleepRepeat = sleepRepeat; }
+    public int getWaitRepeat() { return waitRepeat; }
+    public void setWaitRepeat(int waitRepeat) { this.waitRepeat = waitRepeat; }
 
-    public boolean isRepeating() { return sleepRepeat != 1 || cronExpression != null; }
+    public Instant getWaitUntil() { return waitUntil; }
+    public void setWaitUntil(Instant waitUntil) { this.waitUntil = waitUntil; }
+
+    public boolean isRepeating() { return waitRepeat != 1 || waitUntil != null || cronExpression != null; }
 
     public boolean isCron() { return cronExpression != null; }
 
-    public Instant getCronEnd() { return cronEnd; }
-    public void setCronEnd(Instant cronEnd) { this.cronEnd = cronEnd; }
+    public Instant getCronUntil() { return cronUntil; }
+    public void setCronUntil(Instant cronUntil) { this.cronUntil = cronUntil; }
 
-    public Integer getCronMaxCount() { return cronMaxCount; }
-    public void setCronMaxCount(Integer cronMaxCount) { this.cronMaxCount = cronMaxCount; }
+    public Integer getCronRepeat() { return cronRepeat; }
+    public void setCronRepeat(Integer cronRepeat) { this.cronRepeat = cronRepeat; }
 
-    public int getCronFireCount() { return cronFireCount; }
-    public void setCronFireCount(int cronFireCount) { this.cronFireCount = cronFireCount; }
+    public int getCronRunCount() { return cronRunCount; }
+    public void setCronRunCount(int cronRunCount) { this.cronRunCount = cronRunCount; }
 
-    public Instant getFireAt() { return fireAt; }
-    public void setFireAt(Instant fireAt) { this.fireAt = fireAt; }
+    public Instant getRunAt() { return runAt; }
+    public void setRunAt(Instant runAt) { this.runAt = runAt; }
 
-    public Instant getEffectiveFireAt() { return effectiveFireAt; }
-    public void setEffectiveFireAt(Instant effectiveFireAt) { this.effectiveFireAt = effectiveFireAt; }
+    public Instant getEffectiveRunAt() { return effectiveRunAt; }
+    public void setEffectiveRunAt(Instant effectiveRunAt) { this.effectiveRunAt = effectiveRunAt; }
 
     public Instant getArrivedAt() { return arrivedAt; }
     public void setArrivedAt(Instant arrivedAt) { this.arrivedAt = arrivedAt; }

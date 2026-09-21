@@ -9,7 +9,7 @@ import jakarta.inject.Inject;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -99,17 +99,17 @@ public class JobPreloadService {
         job.setJobKey(def.jobKey);
         job.setDestinationTopic(def.destination);
         job.setKeyPolicy(def.keyPolicy != null ? KeyPolicy.valueOf(def.keyPolicy.toUpperCase()) : KeyPolicy.SKIP);
-        job.setSleepStart(def.sleepStart != null ? SleepStart.valueOf(def.sleepStart.toUpperCase()) : SleepStart.SELF);
+        job.setWaitStart(def.waitStart != null ? WaitStart.valueOf(def.waitStart.toUpperCase()) : WaitStart.SELF);
 
-        if (def.sleepDuration != null) {
-            Duration interval = Duration.parse(def.sleepDuration);
-            job.setFireAt(Instant.now().plus(interval));
-            job.setSleepDuration(def.sleepDuration);
-            job.setSleepRepeat(def.sleepRepeat != null ? def.sleepRepeat : 1);
+        if (def.waitDuration != null) {
+            Duration interval = Duration.parse(def.waitDuration);
+            job.setRunAt(Instant.now().plus(interval));
+            job.setWaitDuration(def.waitDuration);
+            job.setWaitRepeat(def.waitRepeat != null ? def.waitRepeat : 1);
         } else {
-            job.setFireAt(Instant.now());
+            job.setRunAt(Instant.now());
         }
-        job.setEffectiveFireAt(job.getFireAt());
+        job.setEffectiveRunAt(job.getRunAt());
 
         if (def.headers != null) {
             job.setHeaders(def.headers);
@@ -125,7 +125,7 @@ public class JobPreloadService {
         boolean created = jobStore.saveIfNotExistsByKey(job);
         if (created) {
             LOG.infof("Created preload job %s (key=%s, destination=%s, interval=%s, repeat=%s)",
-                job.getId(), job.getJobKey(), job.getDestinationTopic(), def.sleepDuration, def.sleepRepeat);
+                job.getId(), job.getJobKey(), job.getDestinationTopic(), def.waitDuration, def.waitRepeat);
         } else {
             LOG.debugf("Preload job already exists: %s", def.jobKey);
         }
@@ -135,9 +135,9 @@ public class JobPreloadService {
         String jobKey,
         String destination,
         String keyPolicy,
-        String sleepDuration,
-        Integer sleepRepeat,
-        String sleepStart,
+        String waitDuration,
+        Integer waitRepeat,
+        String waitStart,
         Map<String, String> headers,
         String body,
         Integer maxRetries

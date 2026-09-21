@@ -5,7 +5,7 @@ import io.quarkus.test.junit.mockito.InjectMock;
 import jakarta.inject.Inject;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -94,9 +94,9 @@ class IngestProcessorTest {
             Instant after = Instant.now();
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
-            assertNotNull(job.getFireAt());
-            assertTrue(job.getFireAt().compareTo(before) >= 0);
-            assertTrue(job.getFireAt().compareTo(after) <= 0);
+            assertNotNull(job.getRunAt());
+            assertTrue(job.getRunAt().compareTo(before) >= 0);
+            assertTrue(job.getRunAt().compareTo(after) <= 0);
         }
 
         @Test
@@ -107,7 +107,7 @@ class IngestProcessorTest {
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(targetTime, jobCaptor.getValue().getFireAt());
+            assertEquals(targetTime, jobCaptor.getValue().getRunAt());
         }
 
         @Test
@@ -120,9 +120,9 @@ class IngestProcessorTest {
             Instant after = Instant.now().plus(30, ChronoUnit.MINUTES);
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
-            assertTrue(job.getFireAt().compareTo(before) >= 0);
-            assertTrue(job.getFireAt().compareTo(after) <= 0);
-            assertEquals("PT30M", job.getSleepDuration());
+            assertTrue(job.getRunAt().compareTo(before) >= 0);
+            assertTrue(job.getRunAt().compareTo(after) <= 0);
+            assertEquals("PT30M", job.getWaitDuration());
         }
 
         @Test
@@ -132,7 +132,7 @@ class IngestProcessorTest {
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals("PT1H30M15S", jobCaptor.getValue().getSleepDuration());
+            assertEquals("PT1H30M15S", jobCaptor.getValue().getWaitDuration());
         }
 
         @Test
@@ -144,8 +144,8 @@ class IngestProcessorTest {
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
-            assertNotNull(job.getFireAt());
-            assertTrue(job.getFireAt().isAfter(before));
+            assertNotNull(job.getRunAt());
+            assertTrue(job.getRunAt().isAfter(before));
             assertEquals("0 0 * * *", job.getCronExpression());
         }
 
@@ -159,7 +159,7 @@ class IngestProcessorTest {
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
             // Should fire within the next 60 seconds
-            assertTrue(job.getFireAt().isBefore(before.plusSeconds(61)));
+            assertTrue(job.getRunAt().isBefore(before.plusSeconds(61)));
         }
 
         @Test
@@ -213,7 +213,7 @@ class IngestProcessorTest {
         }
 
         @Test
-        void cronEnd_setsCronEndTime() throws Exception {
+        void cronUntil_setsCronEndTime() throws Exception {
             message.setHeader("SCHEDULER_CRON", "0 0 * * *");
             Instant endTime = Instant.now().plus(30, ChronoUnit.DAYS);
             message.setHeader("SCHEDULER_CRON_END", endTime.toString());
@@ -223,7 +223,7 @@ class IngestProcessorTest {
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
             assertEquals("0 0 * * *", job.getCronExpression());
-            assertEquals(endTime, job.getCronEnd());
+            assertEquals(endTime, job.getCronUntil());
         }
 
         @Test
@@ -236,11 +236,11 @@ class IngestProcessorTest {
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
             assertEquals("0 0 * * *", job.getCronExpression());
-            assertEquals(Integer.valueOf(5), job.getCronMaxCount());
+            assertEquals(Integer.valueOf(5), job.getCronRepeat());
         }
 
         @Test
-        void cronEndAndCronCount_bothPresent_throwsException() {
+        void cronUntilAndCronCount_bothPresent_throwsException() {
             message.setHeader("SCHEDULER_CRON", "0 0 * * *");
             message.setHeader("SCHEDULER_CRON_END", Instant.now().plus(30, ChronoUnit.DAYS).toString());
             message.setHeader("SCHEDULER_CRON_COUNT", 5);
@@ -261,57 +261,57 @@ class IngestProcessorTest {
         }
 
         @Test
-        void sleepStartSelf_setsSleepStartToSelf() throws Exception {
+        void waitStartSelf_setsWaitStartToSelf() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_START", "SELF");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(SleepStart.SELF, jobCaptor.getValue().getSleepStart());
+            assertEquals(WaitStart.SELF, jobCaptor.getValue().getWaitStart());
         }
 
         @Test
-        void sleepStartPrev_setsSleepStartToPrev() throws Exception {
+        void waitStartPrev_setsWaitStartToPrev() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_START", "PREV");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(SleepStart.PREV, jobCaptor.getValue().getSleepStart());
+            assertEquals(WaitStart.PREV, jobCaptor.getValue().getWaitStart());
         }
 
         @Test
-        void sleepStartLowercase_caseInsensitive() throws Exception {
+        void waitStartLowercase_caseInsensitive() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_START", "prev");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(SleepStart.PREV, jobCaptor.getValue().getSleepStart());
+            assertEquals(WaitStart.PREV, jobCaptor.getValue().getWaitStart());
         }
 
         @Test
-        void sleepStartMixedCase_caseInsensitive() throws Exception {
+        void waitStartMixedCase_caseInsensitive() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_START", "Self");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(SleepStart.SELF, jobCaptor.getValue().getSleepStart());
+            assertEquals(WaitStart.SELF, jobCaptor.getValue().getWaitStart());
         }
 
         @Test
-        void sleepRepeat_setsSleepRepeatCount() throws Exception {
+        void waitRepeat_setsSleepRepeatCount() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_REPEAT", 5);
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(5, jobCaptor.getValue().getSleepRepeat());
+            assertEquals(5, jobCaptor.getValue().getWaitRepeat());
         }
 
         @Test
-        void sleepRepeatWithSleepStart_bothSet() throws Exception {
+        void waitRepeatWithWaitStart_bothSet() throws Exception {
             message.setHeader("SCHEDULER_SLEEP_START", "PREV");
             message.setHeader("SCHEDULER_SLEEP_REPEAT", 3);
 
@@ -319,16 +319,16 @@ class IngestProcessorTest {
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
-            assertEquals(SleepStart.PREV, job.getSleepStart());
-            assertEquals(3, job.getSleepRepeat());
+            assertEquals(WaitStart.PREV, job.getWaitStart());
+            assertEquals(3, job.getWaitRepeat());
         }
 
         @Test
-        void noSleepStart_defaultsToSelf() throws Exception {
+        void noWaitStart_defaultsToSelf() throws Exception {
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(SleepStart.SELF, jobCaptor.getValue().getSleepStart());
+            assertEquals(WaitStart.SELF, jobCaptor.getValue().getWaitStart());
         }
 
         @Test
@@ -336,7 +336,7 @@ class IngestProcessorTest {
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
-            assertEquals(1, jobCaptor.getValue().getSleepRepeat());
+            assertEquals(1, jobCaptor.getValue().getWaitRepeat());
         }
     }
 
@@ -607,7 +607,7 @@ class IngestProcessorTest {
         }
 
         @Test
-        void effectiveFireAt_sameAsFireAt() throws Exception {
+        void effectiveRunAt_sameAsFireAt() throws Exception {
             Instant targetTime = Instant.now().plus(1, ChronoUnit.HOURS);
             message.setHeader("SCHEDULER_AT", targetTime.toString());
 
@@ -615,7 +615,7 @@ class IngestProcessorTest {
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
-            assertEquals(job.getFireAt(), job.getEffectiveFireAt());
+            assertEquals(job.getRunAt(), job.getEffectiveRunAt());
         }
     }
 
@@ -642,7 +642,7 @@ class IngestProcessorTest {
         }
 
         @Test
-        void invalidSleepStart_throwsException() {
+        void invalidWaitStart_throwsException() {
             message.setHeader("SCHEDULER_SLEEP", "PT1H");
             message.setHeader("SCHEDULER_SLEEP_START", "INVALID");
 
@@ -686,7 +686,7 @@ class IngestProcessorTest {
             ScheduledJob job = jobCaptor.getValue();
 
             assertEquals("output-topic", job.getDestinationTopic());
-            assertEquals(targetTime, job.getFireAt());
+            assertEquals(targetTime, job.getRunAt());
             assertEquals("order-123", job.getJobKey());
             assertEquals(KeyPolicy.REPLACE, job.getKeyPolicy());
             assertEquals(5, job.getMaxRetries());
@@ -710,9 +710,9 @@ class IngestProcessorTest {
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             ScheduledJob job = jobCaptor.getValue();
 
-            assertEquals("PT15M", job.getSleepDuration());
-            assertEquals(SleepStart.PREV, job.getSleepStart());
-            assertEquals(10, job.getSleepRepeat());
+            assertEquals("PT15M", job.getWaitDuration());
+            assertEquals(WaitStart.PREV, job.getWaitStart());
+            assertEquals(10, job.getWaitRepeat());
             assertEquals("batch-job", job.getJobKey());
             assertEquals(KeyPolicy.QUEUE, job.getKeyPolicy());
         }

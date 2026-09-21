@@ -5,7 +5,7 @@ import net.maxf.pubsub.scheduler.dao.JobDao;
 import net.maxf.pubsub.scheduler.model.AdvisoryEvent;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import net.maxf.pubsub.scheduler.rest.JobResource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -204,11 +204,11 @@ public class JobStoreService {
         try {
             List<ScheduledJob> successors = jobDao.findWaitingByPredecessor(completedJob.getId());
             for (ScheduledJob successor : successors) {
-                if (successor.getSleepStart() == SleepStart.PREV && successor.getSleepDuration() != null) {
-                    Duration sleep = Duration.parse(successor.getSleepDuration());
-                    successor.setEffectiveFireAt(Instant.now().plus(sleep));
+                if (successor.getWaitStart() == WaitStart.PREV && successor.getWaitDuration() != null) {
+                    Duration sleep = Duration.parse(successor.getWaitDuration());
+                    successor.setEffectiveRunAt(Instant.now().plus(sleep));
                 } else {
-                    successor.setEffectiveFireAt(successor.getFireAt());
+                    successor.setEffectiveRunAt(successor.getRunAt());
                 }
                 successor.setState(JobState.PENDING);
                 successor.setPredecessorId(null);

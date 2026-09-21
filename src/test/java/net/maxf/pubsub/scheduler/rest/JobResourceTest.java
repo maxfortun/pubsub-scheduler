@@ -306,8 +306,8 @@ class JobResourceTest {
         ScheduledJob job = new ScheduledJob();
         job.setJobKey(key);
         job.setDestinationTopic("output-topic");
-        job.setFireAt(Instant.now());
-        job.setEffectiveFireAt(Instant.now());
+        job.setRunAt(Instant.now());
+        job.setEffectiveRunAt(Instant.now());
         return job;
     }
 }

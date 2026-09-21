@@ -5,7 +5,7 @@ import jakarta.inject.Inject;
 import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
-import net.maxf.pubsub.scheduler.model.SleepStart;
+import net.maxf.pubsub.scheduler.model.WaitStart;
 import org.jboss.logging.Logger;
 
 import javax.sql.DataSource;
@@ -26,15 +26,15 @@ public class PostgresJobDao implements JobDao {
     public void insert(ScheduledJob job) {
         String sql = """
             INSERT INTO scheduled_jobs (
-                id, job_key, key_policy, sleep_start, sleep_duration, sleep_repeat,
-                cron_expression, cron_end, cron_max_count, cron_fire_count,
-                fire_at, effective_fire_at, arrived_at,
+                id, job_key, key_policy, wait_start, wait_duration, wait_repeat, wait_until,
+                cron_expression, cron_until, cron_repeat, cron_run_count,
+                run_at, effective_run_at, arrived_at,
                 destination_topic, message_key, message_value, headers, advisory_headers_pattern,
                 state, max_retries, retry_count, version,
                 predecessor_id, sequence_num,
                 acquired_by, acquired_at, created_at, updated_at, last_error
             ) VALUES (
-                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?,
                 ?, ?, ?, ?::jsonb, ?,
@@ -62,16 +62,16 @@ public class PostgresJobDao implements JobDao {
 
         String sql = """
             INSERT INTO scheduled_jobs (
-                id, job_key, key_policy, sleep_start, sleep_duration, sleep_repeat,
-                cron_expression, cron_end, cron_max_count, cron_fire_count,
-                fire_at, effective_fire_at, arrived_at,
+                id, job_key, key_policy, wait_start, wait_duration, wait_repeat, wait_until,
+                cron_expression, cron_until, cron_repeat, cron_run_count,
+                run_at, effective_run_at, arrived_at,
                 destination_topic, message_key, message_value, headers, advisory_headers_pattern,
                 state, max_retries, retry_count, version,
                 predecessor_id, sequence_num,
                 acquired_by, acquired_at, created_at, updated_at, last_error
             )
             SELECT
-                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?,
                 ?, ?, ?, ?::jsonb, ?,
@@ -100,9 +100,9 @@ public class PostgresJobDao implements JobDao {
     public boolean update(ScheduledJob job) {
         String sql = """
             UPDATE scheduled_jobs SET
-                job_key = ?, key_policy = ?, sleep_start = ?, sleep_duration = ?, sleep_repeat = ?,
-                cron_expression = ?, cron_end = ?, cron_max_count = ?, cron_fire_count = ?,
-                fire_at = ?, effective_fire_at = ?, arrived_at = ?,
+                job_key = ?, key_policy = ?, wait_start = ?, wait_duration = ?, wait_repeat = ?, wait_until = ?,
+                cron_expression = ?, cron_until = ?, cron_repeat = ?, cron_run_count = ?,
+                run_at = ?, effective_run_at = ?, arrived_at = ?,
                 destination_topic = ?, message_key = ?, message_value = ?, headers = ?::jsonb, advisory_headers_pattern = ?,
                 state = ?, max_retries = ?, retry_count = ?, version = ?,
                 predecessor_id = ?, sequence_num = ?,
@@ -115,15 +115,16 @@ public class PostgresJobDao implements JobDao {
             int idx = 1;
             ps.setString(idx++, job.getJobKey());
             ps.setString(idx++, job.getKeyPolicy().name());
-            ps.setString(idx++, job.getSleepStart().name());
-            ps.setString(idx++, job.getSleepDuration());
-            ps.setInt(idx++, job.getSleepRepeat());
+            ps.setString(idx++, job.getWaitStart().name());
+            ps.setString(idx++, job.getWaitDuration());
+            ps.setInt(idx++, job.getWaitRepeat());
+            ps.setTimestamp(idx++, toTimestamp(job.getWaitUntil()));
             ps.setString(idx++, job.getCronExpression());
-            ps.setTimestamp(idx++, toTimestamp(job.getCronEnd()));
-            setNullableInt(ps, idx++, job.getCronMaxCount());
-            ps.setInt(idx++, job.getCronFireCount());
-            ps.setTimestamp(idx++, toTimestamp(job.getFireAt()));
-            ps.setTimestamp(idx++, toTimestamp(job.getEffectiveFireAt()));
+            ps.setTimestamp(idx++, toTimestamp(job.getCronUntil()));
+            setNullableInt(ps, idx++, job.getCronRepeat());
+            ps.setInt(idx++, job.getCronRunCount());
+            ps.setTimestamp(idx++, toTimestamp(job.getRunAt()));
+            ps.setTimestamp(idx++, toTimestamp(job.getEffectiveRunAt()));
             ps.setTimestamp(idx++, toTimestamp(job.getArrivedAt()));
             ps.setString(idx++, job.getDestinationTopic());
             ps.setBytes(idx++, job.getMessageKey());
@@ -198,7 +199,7 @@ public class PostgresJobDao implements JobDao {
             SELECT * FROM scheduled_jobs
             WHERE state = 'PENDING'
               AND mod(abs(hashtext(COALESCE(job_key, id::text))), ?) = ?
-            ORDER BY effective_fire_at
+            ORDER BY effective_run_at
             """;
 
         return queryJobs(sql, ps -> {
@@ -219,7 +220,7 @@ public class PostgresJobDao implements JobDao {
             WHERE state = 'PENDING'
               AND mod(abs(hashtext(COALESCE(job_key, id::text))), ?) = ?
               AND id NOT IN (%s)
-            ORDER BY effective_fire_at
+            ORDER BY effective_run_at
             """.formatted(placeholders);
 
         return queryJobs(sql, ps -> {
@@ -234,7 +235,7 @@ public class PostgresJobDao implements JobDao {
 
     @Override
     public List<ScheduledJob> findAllPending() {
-        String sql = "SELECT * FROM scheduled_jobs WHERE state = 'PENDING' ORDER BY effective_fire_at";
+        String sql = "SELECT * FROM scheduled_jobs WHERE state = 'PENDING' ORDER BY effective_run_at";
         return queryJobs(sql, ps -> {});
     }
 
@@ -374,15 +375,16 @@ public class PostgresJobDao implements JobDao {
         ps.setObject(idx++, job.getId());
         ps.setString(idx++, job.getJobKey());
         ps.setString(idx++, job.getKeyPolicy().name());
-        ps.setString(idx++, job.getSleepStart().name());
-        ps.setString(idx++, job.getSleepDuration());
-        ps.setInt(idx++, job.getSleepRepeat());
+        ps.setString(idx++, job.getWaitStart().name());
+        ps.setString(idx++, job.getWaitDuration());
+        ps.setInt(idx++, job.getWaitRepeat());
+        ps.setTimestamp(idx++, toTimestamp(job.getWaitUntil()));
         ps.setString(idx++, job.getCronExpression());
-        ps.setTimestamp(idx++, toTimestamp(job.getCronEnd()));
-        setNullableInt(ps, idx++, job.getCronMaxCount());
-        ps.setInt(idx++, job.getCronFireCount());
-        ps.setTimestamp(idx++, toTimestamp(job.getFireAt()));
-        ps.setTimestamp(idx++, toTimestamp(job.getEffectiveFireAt()));
+        ps.setTimestamp(idx++, toTimestamp(job.getCronUntil()));
+        setNullableInt(ps, idx++, job.getCronRepeat());
+        ps.setInt(idx++, job.getCronRunCount());
+        ps.setTimestamp(idx++, toTimestamp(job.getRunAt()));
+        ps.setTimestamp(idx++, toTimestamp(job.getEffectiveRunAt()));
         ps.setTimestamp(idx++, toTimestamp(job.getArrivedAt()));
         ps.setString(idx++, job.getDestinationTopic());
         ps.setBytes(idx++, job.getMessageKey());
@@ -407,15 +409,16 @@ public class PostgresJobDao implements JobDao {
         job.setId(rs.getObject("id", UUID.class));
         job.setJobKey(rs.getString("job_key"));
         job.setKeyPolicy(KeyPolicy.valueOf(rs.getString("key_policy")));
-        job.setSleepStart(SleepStart.valueOf(rs.getString("sleep_start")));
-        job.setSleepDuration(rs.getString("sleep_duration"));
-        job.setSleepRepeat(rs.getInt("sleep_repeat"));
+        job.setWaitStart(WaitStart.valueOf(rs.getString("wait_start")));
+        job.setWaitDuration(rs.getString("wait_duration"));
+        job.setWaitRepeat(rs.getInt("wait_repeat"));
+        job.setWaitUntil(toInstant(rs.getTimestamp("wait_until")));
         job.setCronExpression(rs.getString("cron_expression"));
-        job.setCronEnd(toInstant(rs.getTimestamp("cron_end")));
-        job.setCronMaxCount(getNullableInt(rs, "cron_max_count"));
-        job.setCronFireCount(rs.getInt("cron_fire_count"));
-        job.setFireAt(toInstant(rs.getTimestamp("fire_at")));
-        job.setEffectiveFireAt(toInstant(rs.getTimestamp("effective_fire_at")));
+        job.setCronUntil(toInstant(rs.getTimestamp("cron_until")));
+        job.setCronRepeat(getNullableInt(rs, "cron_repeat"));
+        job.setCronRunCount(rs.getInt("cron_run_count"));
+        job.setRunAt(toInstant(rs.getTimestamp("run_at")));
+        job.setEffectiveRunAt(toInstant(rs.getTimestamp("effective_run_at")));
         job.setArrivedAt(toInstant(rs.getTimestamp("arrived_at")));
         job.setDestinationTopic(rs.getString("destination_topic"));
         job.setMessageKey(rs.getBytes("message_key"));
