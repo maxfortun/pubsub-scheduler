@@ -165,8 +165,8 @@ function App() {
       case 'PENDING': return '#3498db';
       case 'WAITING': return '#9b59b6';
       case 'ACQUIRED': return '#f39c12';
-      case 'FIRING': return '#e67e22';
-      case 'COMPLETE': return '#27ae60';
+      case 'RUNNING': return '#e67e22';
+      case 'DONE': return '#27ae60';
       case 'FAILED': return '#e74c3c';
       default: return '#95a5a6';
     }
@@ -300,13 +300,13 @@ function App() {
             <div className="stat-value">{stats.acquired}</div>
             <div className="stat-label">Acquired</div>
           </div>
-          <div className="stat-card" style={{ borderColor: getStateColor('FIRING') }}>
-            <div className="stat-value">{stats.firing}</div>
-            <div className="stat-label">Firing</div>
+          <div className="stat-card" style={{ borderColor: getStateColor('RUNNING') }}>
+            <div className="stat-value">{stats.running}</div>
+            <div className="stat-label">Running</div>
           </div>
-          <div className="stat-card" style={{ borderColor: getStateColor('COMPLETE') }}>
-            <div className="stat-value">{stats.complete}</div>
-            <div className="stat-label">Complete</div>
+          <div className="stat-card" style={{ borderColor: getStateColor('DONE') }}>
+            <div className="stat-value">{stats.done}</div>
+            <div className="stat-label">Done</div>
           </div>
           <div className="stat-card" style={{ borderColor: getStateColor('FAILED') }}>
             <div className="stat-value">{stats.failed}</div>
@@ -324,8 +324,8 @@ function App() {
           <option value="PENDING">Pending</option>
           <option value="WAITING">Waiting</option>
           <option value="ACQUIRED">Acquired</option>
-          <option value="FIRING">Firing</option>
-          <option value="COMPLETE">Complete</option>
+          <option value="RUNNING">Running</option>
+          <option value="DONE">Done</option>
           <option value="FAILED">Failed</option>
         </select>
         <input

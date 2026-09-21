@@ -14,7 +14,7 @@ public interface JobDao {
 
     /**
      * Atomically inserts the job only if no active job with the same key exists.
-     * Active means state in (PENDING, WAITING, ACQUIRED, FIRING).
+     * Active means state in (PENDING, WAITING, ACQUIRED, RUNNING).
      * @return true if inserted, false if a job with the key already exists
      */
     boolean insertIfNotExistsByKey(ScheduledJob job);

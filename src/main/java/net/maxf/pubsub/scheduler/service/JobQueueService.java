@@ -165,7 +165,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
                 return;
             }
 
-            job.setState(JobState.FIRING);
+            job.setState(JobState.RUNNING);
             job.setUpdatedAt(Instant.now());
             jobStore.update(job);
             advisoryService.publish(job, AdvisoryEvent.JOB_RUNNING);
@@ -175,7 +175,7 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
             if (shouldRepeat(job)) {
                 scheduleNextRepetition(job);
             } else {
-                job.setState(JobState.COMPLETE);
+                job.setState(JobState.DONE);
                 job.setUpdatedAt(Instant.now());
                 jobStore.update(job);
                 advisoryService.publish(job, AdvisoryEvent.JOB_DONE);

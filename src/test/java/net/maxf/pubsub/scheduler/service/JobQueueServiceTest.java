@@ -145,7 +145,7 @@ class JobQueueServiceTest {
             ScheduledJob job = createJob();
             job.setSleepDuration("PT15M");
             job.setSleepRepeat(0);
-            job.setState(JobState.FIRING);
+            job.setState(JobState.RUNNING);
 
             testScheduleNextRepetition(job);
 

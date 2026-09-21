@@ -164,11 +164,11 @@ class JobResourceTest {
 
     @Test
     void listJobs_emptyResults_returnsEmptyPage() {
-        when(jobStore.findJobsPaged(JobState.COMPLETE, null, 0, 100))
+        when(jobStore.findJobsPaged(JobState.DONE, null, 0, 100))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 100, 0));
 
         given()
-            .queryParam("state", "COMPLETE")
+            .queryParam("state", "DONE")
             .when().get("/api/jobs")
             .then()
             .statusCode(200)

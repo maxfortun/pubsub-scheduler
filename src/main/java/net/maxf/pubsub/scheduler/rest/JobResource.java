@@ -72,7 +72,7 @@ public class JobResource {
     public PagedResult<ScheduledJob> listJobs(
             @Parameter(
                 description = "Filter by job state",
-                schema = @Schema(enumeration = {"PENDING", "WAITING", "ACQUIRED", "FIRING", "COMPLETE", "FAILED"})
+                schema = @Schema(enumeration = {"PENDING", "WAITING", "ACQUIRED", "RUNNING", "DONE", "FAILED"})
             )
             @QueryParam("state") JobState state,
             @Parameter(description = "Filter by job key (exact match)")
@@ -119,7 +119,7 @@ public class JobResource {
     @Path("/{id}")
     @Operation(
         summary = "Cancel job",
-        description = "Cancel a pending or waiting scheduled job. Jobs that are already acquired, firing, complete, or failed cannot be cancelled."
+        description = "Cancel a pending or waiting scheduled job. Jobs that are already acquired, running, done, or failed cannot be cancelled."
     )
     @APIResponses({
         @APIResponse(responseCode = "204", description = "Job cancelled successfully"),
@@ -322,14 +322,14 @@ public class JobResource {
     public record JobStats(
             @Schema(description = "Jobs pending delivery", example = "42")
             long pending,
-            @Schema(description = "Jobs waiting for predecessor to complete", example = "10")
+            @Schema(description = "Jobs waiting for predecessor to done", example = "10")
             long waiting,
             @Schema(description = "Jobs acquired by an instance for processing", example = "3")
             long acquired,
             @Schema(description = "Jobs currently being delivered", example = "1")
-            long firing,
+            long running,
             @Schema(description = "Jobs successfully delivered", example = "1523")
-            long complete,
+            long done,
             @Schema(description = "Jobs that failed after all retries", example = "7")
             long failed
     ) {}

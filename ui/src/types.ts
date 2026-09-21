@@ -1,4 +1,4 @@
-export type JobState = 'PENDING' | 'WAITING' | 'ACQUIRED' | 'FIRING' | 'COMPLETE' | 'FAILED';
+export type JobState = 'PENDING' | 'WAITING' | 'ACQUIRED' | 'RUNNING' | 'DONE' | 'FAILED';
 
 export type TimingType = 'AT' | 'DURATION' | 'CRON';
 
@@ -33,8 +33,8 @@ export interface JobStats {
   pending: number;
   waiting: number;
   acquired: number;
-  firing: number;
-  complete: number;
+  running: number;
+  done: number;
   failed: number;
 }
 

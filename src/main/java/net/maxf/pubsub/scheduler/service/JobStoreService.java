@@ -316,7 +316,7 @@ public class JobStoreService {
             return false;
         }
         ScheduledJob job = jobOpt.get();
-        if (job.getState() == JobState.COMPLETE || job.getState() == JobState.FAILED) {
+        if (job.getState() == JobState.DONE || job.getState() == JobState.FAILED) {
             return false;
         }
         job.setState(JobState.FAILED);

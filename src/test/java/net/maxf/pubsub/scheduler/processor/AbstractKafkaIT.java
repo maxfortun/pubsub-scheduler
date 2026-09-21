@@ -786,10 +786,10 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
             assertFalse(jobs.isEmpty(), "Job should exist");
             ScheduledJob job = jobs.get(0);
-            // Job fires immediately so it should be COMPLETE (or still PENDING/FIRING)
-            assertTrue(job.getState() == JobState.COMPLETE ||
+            // Job fires immediately so it should be DONE (or still PENDING/RUNNING)
+            assertTrue(job.getState() == JobState.DONE ||
                        job.getState() == JobState.PENDING ||
-                       job.getState() == JobState.FIRING,
+                       job.getState() == JobState.RUNNING,
                 "Immediate job should fire. State: " + job.getState());
             assertNotNull(job.getFireAt(), "Fire time should be set");
         }
@@ -998,13 +998,13 @@ abstract class AbstractKafkaIT {
 
             Thread.sleep(5000);
 
-            // Job should be COMPLETE
+            // Job should be DONE
             List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
             assertFalse(jobs.isEmpty(), "Job should exist");
             ScheduledJob job = jobs.get(0);
 
             // Try to cancel - should return false if already complete
-            if (job.getState() == JobState.COMPLETE) {
+            if (job.getState() == JobState.DONE) {
                 boolean cancelled = jobStore.cancelJob(job.getId());
                 assertFalse(cancelled, "Cannot cancel a completed job");
             }
@@ -1042,8 +1042,8 @@ abstract class AbstractKafkaIT {
             assertTrue(pendingJobs.stream().anyMatch(j -> jobKey1.equals(j.getJobKey())),
                 "Should find the pending job");
 
-            // Query for COMPLETE jobs
-            List<ScheduledJob> completeJobs = jobStore.findJobs(JobState.COMPLETE, null, 100);
+            // Query for DONE jobs
+            List<ScheduledJob> completeJobs = jobStore.findJobs(JobState.DONE, null, 100);
             assertTrue(completeJobs.stream().anyMatch(j -> jobKey2.equals(j.getJobKey())),
                 "Should find the completed job");
         }
@@ -1553,7 +1553,7 @@ abstract class AbstractKafkaIT {
             List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
             assertFalse(jobs.isEmpty(), "Job should exist");
             JobState state = jobs.get(0).getState();
-            assertTrue(state == JobState.COMPLETE || state == JobState.PENDING || state == JobState.FIRING,
+            assertTrue(state == JobState.DONE || state == JobState.PENDING || state == JobState.RUNNING,
                 "Job should be in a valid execution state. Actual: " + state);
         }
     }
@@ -1633,7 +1633,7 @@ abstract class AbstractKafkaIT {
 
             // Verify promotion occurred - both jobs should have completed
             jobs = jobStore.findByKey(jobKey);
-            long completeCount = jobs.stream().filter(j -> j.getState() == JobState.COMPLETE).count();
+            long completeCount = jobs.stream().filter(j -> j.getState() == JobState.DONE).count();
             assertEquals(2, completeCount, "Both jobs should complete after promotion. States: " +
                 jobs.stream().map(j -> j.getState().toString()).toList());
         }

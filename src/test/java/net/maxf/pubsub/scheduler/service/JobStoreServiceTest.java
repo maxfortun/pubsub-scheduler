@@ -301,7 +301,7 @@ class JobStoreServiceTest {
         @Test
         void cancelJob_alreadyComplete_returnsFalse() {
             ScheduledJob job = createJob();
-            job.setState(JobState.COMPLETE);
+            job.setState(JobState.DONE);
             when(jobDao.findById(job.getId())).thenReturn(Optional.of(job));
 
             boolean result = jobStore.cancelJob(job.getId());

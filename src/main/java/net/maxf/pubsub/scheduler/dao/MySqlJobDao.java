@@ -81,7 +81,7 @@ public class MySqlJobDao implements JobDao {
             FROM DUAL
             WHERE NOT EXISTS (
                 SELECT 1 FROM scheduled_jobs
-                WHERE job_key = ? AND state IN ('PENDING', 'WAITING', 'ACQUIRED', 'FIRING')
+                WHERE job_key = ? AND state IN ('PENDING', 'WAITING', 'ACQUIRED', 'RUNNING')
             )
             """;
 
@@ -174,7 +174,7 @@ public class MySqlJobDao implements JobDao {
     public List<ScheduledJob> findPendingByKey(String jobKey) {
         String sql = """
             SELECT * FROM scheduled_jobs
-            WHERE job_key = ? AND state IN ('PENDING', 'WAITING', 'ACQUIRED', 'FIRING')
+            WHERE job_key = ? AND state IN ('PENDING', 'WAITING', 'ACQUIRED', 'RUNNING')
             ORDER BY sequence_num
             """;
 
@@ -364,8 +364,8 @@ public class MySqlJobDao implements JobDao {
             counts.getOrDefault("PENDING", 0L),
             counts.getOrDefault("WAITING", 0L),
             counts.getOrDefault("ACQUIRED", 0L),
-            counts.getOrDefault("FIRING", 0L),
-            counts.getOrDefault("COMPLETE", 0L),
+            counts.getOrDefault("RUNNING", 0L),
+            counts.getOrDefault("DONE", 0L),
             counts.getOrDefault("FAILED", 0L)
         );
     }
