@@ -1,6 +1,7 @@
 package net.maxf.pubsub.scheduler.processor;
 
 import jakarta.inject.Inject;
+import net.maxf.pubsub.scheduler.model.JobState;
 import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
 import net.maxf.pubsub.scheduler.model.SleepStart;
@@ -33,6 +34,7 @@ abstract class AbstractKafkaIT {
     static final String BOOTSTRAP_SERVERS = "localhost:9092";
     static final String SCHEDULER_IN_TOPIC = "scheduler-in";
     static final String SCHEDULER_DLQ_TOPIC = "scheduler-dlq";
+    static final String SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory";
     static final String OUTPUT_TOPIC = "output-topic";
 
     @Inject
@@ -384,6 +386,144 @@ abstract class AbstractKafkaIT {
             assertFalse(jobs.isEmpty());
             assertEquals(KeyPolicy.QUEUE, jobs.get(0).getKeyPolicy());
         }
+
+        @Test
+        @Order(5)
+        void queuePolicy_secondJob_chainsBehindfirst() throws Exception {
+            String jobKey = "chain-test-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Send first job
+            ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "first".getBytes());
+            record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record1.headers().add(header("SCHEDULER_KEY", jobKey));
+            record1.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record1).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000); // Wait for first job to be fully processed
+
+            // Verify first job exists
+            List<ScheduledJob> firstJobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(firstJobs.isEmpty(), "First job should be pending with key: " + jobKey);
+            ScheduledJob firstJob = firstJobs.get(0);
+
+            // Send second job with same key - should chain
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "second".getBytes());
+            record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record2.headers().add(header("SCHEDULER_KEY", jobKey));
+            record2.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(60).toString()));
+            producer.send(record2).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000); // Wait for second job to be processed
+
+            // Query for all jobs by key (both PENDING and WAITING)
+            List<ScheduledJob> allJobs = jobStore.findByKey(jobKey);
+            assertTrue(allJobs.size() >= 2, "Should have at least 2 jobs with key: " + jobKey + ", found: " + allJobs.size());
+
+            // Find the waiting job (second one)
+            ScheduledJob waitingJob = allJobs.stream()
+                .filter(j -> j.getState() == JobState.WAITING)
+                .findFirst()
+                .orElse(null);
+            assertNotNull(waitingJob, "Second job should be in WAITING state (chained)");
+            assertEquals(firstJob.getId(), waitingJob.getPredecessorId(), "Waiting job should have first job as predecessor");
+
+            // Verify JOB_CHAINED advisory event was published
+            ConsumerRecord<String, byte[]> chainedEvent = pollAdvisoryForEvent("JOB_CHAINED", jobKey, Duration.ofSeconds(10));
+            assertNotNull(chainedEvent, "JOB_CHAINED advisory event should be published");
+        }
+
+        @Test
+        @Order(6)
+        void skipPolicy_secondJob_skipped() throws Exception {
+            String jobKey = "skip-test-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Send first job with SKIP policy
+            ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "first".getBytes());
+            record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record1.headers().add(header("SCHEDULER_KEY", jobKey));
+            record1.headers().add(header("SCHEDULER_KEY_POLICY", "SKIP"));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record1).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify first job exists
+            List<ScheduledJob> firstJobs = jobStore.findPendingByKey(jobKey);
+            assertEquals(1, firstJobs.size(), "First job should be created");
+
+            // Send second job with same key and SKIP - should be skipped
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "second".getBytes());
+            record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record2.headers().add(header("SCHEDULER_KEY", jobKey));
+            record2.headers().add(header("SCHEDULER_KEY_POLICY", "SKIP"));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(60).toString()));
+            producer.send(record2).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Should still have only 1 job - second was skipped
+            List<ScheduledJob> allJobs = jobStore.findByKey(jobKey);
+            assertEquals(1, allJobs.size(), "Second job should have been skipped, only first should exist");
+
+            // Verify JOB_SKIPPED advisory event was published
+            ConsumerRecord<String, byte[]> skippedEvent = pollAdvisoryForEvent("JOB_SKIPPED", jobKey, Duration.ofSeconds(10));
+            assertNotNull(skippedEvent, "JOB_SKIPPED advisory event should be published");
+        }
+
+        @Test
+        @Order(7)
+        void replacePolicy_secondJob_replacesFirst() throws Exception {
+            String jobKey = "replace-test-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Send first job with REPLACE policy
+            ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "first-body".getBytes());
+            record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record1.headers().add(header("SCHEDULER_KEY", jobKey));
+            record1.headers().add(header("SCHEDULER_KEY_POLICY", "REPLACE"));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record1).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify first job exists
+            List<ScheduledJob> firstJobs = jobStore.findPendingByKey(jobKey);
+            assertEquals(1, firstJobs.size(), "First job should be created");
+            UUID firstJobId = firstJobs.get(0).getId();
+
+            // Send second job with same key and REPLACE - should replace first
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "second-body".getBytes());
+            record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record2.headers().add(header("SCHEDULER_KEY", jobKey));
+            record2.headers().add(header("SCHEDULER_KEY_POLICY", "REPLACE"));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(60).toString()));
+            producer.send(record2).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Should have only 1 PENDING job - the second one
+            List<ScheduledJob> pendingJobs = jobStore.findPendingByKey(jobKey);
+            assertEquals(1, pendingJobs.size(), "Should have exactly 1 pending job after replace");
+            assertNotEquals(firstJobId, pendingJobs.get(0).getId(), "New job should have different ID");
+            assertEquals("second-body", new String(pendingJobs.get(0).getMessageValue()), "New job should have second body");
+
+            // First job should be FAILED
+            List<ScheduledJob> allJobs = jobStore.findByKey(jobKey);
+            ScheduledJob failedJob = allJobs.stream()
+                .filter(j -> j.getState() == JobState.FAILED)
+                .findFirst()
+                .orElse(null);
+            assertNotNull(failedJob, "First job should be in FAILED state after replacement");
+            assertEquals(firstJobId, failedJob.getId(), "Failed job should be the original first job");
+
+            // Verify JOB_REPLACED advisory event was published for the first job
+            ConsumerRecord<String, byte[]> replacedEvent = pollAdvisoryForEvent("JOB_REPLACED", jobKey, Duration.ofSeconds(10));
+            assertNotNull(replacedEvent, "JOB_REPLACED advisory event should be published");
+        }
     }
 
     @Nested
@@ -696,6 +836,39 @@ abstract class AbstractKafkaIT {
                 }
             }
             return ConsumerRecords.empty();
+        }
+    }
+
+    /**
+     * Poll advisory topic for a specific event type and job key.
+     * Returns the matching advisory record or null if not found within timeout.
+     */
+    protected ConsumerRecord<String, byte[]> pollAdvisoryForEvent(String eventType, String jobKey, Duration timeout) {
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "advisory-poll-" + UUID.randomUUID());
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+
+        try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps)) {
+            var partition = new org.apache.kafka.common.TopicPartition(SCHEDULER_ADVISORY_TOPIC, 0);
+            consumer.assign(Collections.singletonList(partition));
+            long endOffset = consumer.endOffsets(Collections.singletonList(partition)).get(partition);
+            long seekOffset = Math.max(0, endOffset - 100); // Look at last 100 messages
+            consumer.seek(partition, seekOffset);
+
+            long deadline = System.currentTimeMillis() + timeout.toMillis();
+            while (System.currentTimeMillis() < deadline) {
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(500));
+                for (ConsumerRecord<String, byte[]> record : records) {
+                    String event = getHeader(record, "SCHEDULER_ADVISORY_EVENT");
+                    String key = getHeader(record, "SCHEDULER_KEY");
+                    if (eventType.equals(event) && (jobKey == null || jobKey.equals(key))) {
+                        return record;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

@@ -103,6 +103,15 @@ public class JobStoreService {
         }
     }
 
+    public List<ScheduledJob> findByKey(String jobKey) {
+        try {
+            return jobDao.findJobs(null, jobKey, 100);
+        } catch (DaoException e) {
+            LOG.errorf(e, "Failed to find jobs by key %s", jobKey);
+            return List.of();
+        }
+    }
+
     public boolean acquire(ScheduledJob job) {
         try {
             boolean acquired = jobDao.acquire(job.getId(), instanceRegistry.getInstanceId(), job.getVersion());
