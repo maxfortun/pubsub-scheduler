@@ -61,14 +61,29 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
         </div>
         <div className="form-group">
           <label>Until (optional)</label>
-          <div className="input-with-clear">
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input
               type="datetime-local"
               value={waitUntilLocal}
               onChange={e => handleEndDateChange(e.target.value)}
+              style={{ flex: 1 }}
             />
             {form.waitUntil && (
-              <button type="button" className="clear-input-btn" onClick={() => onChange({ waitUntil: undefined })}>×</button>
+              <button
+                type="button"
+                onClick={() => onChange({ waitUntil: undefined })}
+                style={{
+                  background: '#e74c3c',
+                  border: 'none',
+                  color: 'white',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Clear
+              </button>
             )}
           </div>
           <div className="field-hint">Empty = unlimited</div>
