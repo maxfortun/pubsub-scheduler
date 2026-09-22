@@ -105,9 +105,25 @@ tasks.register<Test>("databaseTest") {
     forkEvery = 1
 }
 
+tasks.register<Exec>("cleanTestDatabases") {
+    description = "Cleans all test databases before running integration tests"
+    group = "verification"
+    workingDir = projectDir
+    commandLine("bash", "scripts/clean-test-databases.sh")
+    isIgnoreExitValue = true
+}
+
+tasks.register<Exec>("stopSchedulerContainers") {
+    description = "Stops scheduler containers that might interfere with tests"
+    group = "verification"
+    commandLine("bash", "-c", "docker stop scheduler-postgres scheduler-mysql scheduler-cockroach 2>/dev/null || true")
+    isIgnoreExitValue = true
+}
+
 tasks.register<Test>("postgresTest") {
     description = "Runs PostgreSQL integration tests"
     group = "verification"
+    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
     useJUnitPlatform {
         includeTags("postgres")
     }
@@ -122,6 +138,7 @@ tasks.register<Test>("postgresTest") {
 tasks.register<Test>("mysqlTest") {
     description = "Runs MySQL integration tests"
     group = "verification"
+    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
     useJUnitPlatform {
         includeTags("mysql")
     }
@@ -136,6 +153,7 @@ tasks.register<Test>("mysqlTest") {
 tasks.register<Test>("cockroachTest") {
     description = "Runs CockroachDB integration tests"
     group = "verification"
+    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
     useJUnitPlatform {
         includeTags("cockroachdb")
     }
