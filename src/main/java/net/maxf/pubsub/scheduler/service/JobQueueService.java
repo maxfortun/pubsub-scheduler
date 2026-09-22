@@ -143,6 +143,15 @@ public class JobQueueService implements InstanceRegistryService.ShardChangeListe
         }
     }
 
+    public void requeue(ScheduledJob job) {
+        synchronized (queueLock) {
+            enqueuedJobIds.remove(job.getId());
+            delayQueue.removeIf(j -> j.getId().equals(job.getId()));
+            enqueueInternal(job);
+            LOG.debugf("Job %s requeued, fire at %s", job.getId(), job.getEffectiveRunAt());
+        }
+    }
+
     private void fireLoop() {
         while (!Thread.currentThread().isInterrupted()) {
             try {

@@ -147,6 +147,104 @@ public class JobResource {
         return jobStore.getStats();
     }
 
+    @PUT
+    @Path("/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Update a scheduled job",
+        description = "Updates a scheduled job. Only jobs in PENDING or WAITING state can be updated."
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Job updated successfully",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = ScheduledJob.class))
+        ),
+        @APIResponse(responseCode = "400", description = "Invalid request"),
+        @APIResponse(responseCode = "404", description = "Job not found"),
+        @APIResponse(responseCode = "409", description = "Job cannot be updated (not in PENDING or WAITING state)")
+    })
+    public Response updateJob(
+            @Parameter(description = "Job UUID", required = true)
+            @PathParam("id") UUID id,
+            CreateJobRequest request) {
+
+        var existingJob = jobStore.findById(id);
+        if (existingJob.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(Map.of("error", "Job not found"))
+                    .build();
+        }
+
+        ScheduledJob job = existingJob.get();
+        if (job.getState() != JobState.PENDING && job.getState() != JobState.WAITING) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(Map.of("error", "Job cannot be updated - state is " + job.getState()))
+                    .build();
+        }
+
+        List<String> errors = validateCreateRequest(request);
+        if (!errors.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", String.join("; ", errors)))
+                    .build();
+        }
+
+        job.setDestinationTopic(request.destinationTopic.trim());
+        job.setJobKey(request.jobKey != null ? request.jobKey.trim() : null);
+        job.setKeyPolicy(request.keyPolicy != null ? request.keyPolicy : KeyPolicy.QUEUE);
+        job.setMaxRetries(request.maxRetries != null ? Math.min(request.maxRetries, MAX_RETRIES_LIMIT) : 3);
+
+        if (request.messageKey != null) {
+            job.setMessageKey(request.messageKey.getBytes(StandardCharsets.UTF_8));
+        } else {
+            job.setMessageKey(null);
+        }
+        if (request.messageValue != null) {
+            job.setMessageValue(request.messageValue.getBytes(StandardCharsets.UTF_8));
+        } else {
+            job.setMessageValue(null);
+        }
+        job.setHeaders(request.headers);
+
+        Instant now = Instant.now();
+        job.setCronExpression(null);
+        job.setCronRepeat(null);
+        job.setCronUntil(null);
+        job.setWaitDuration(null);
+        job.setWaitStart(WaitStart.SELF);
+        job.setWaitRepeat(1);
+        job.setWaitUntil(null);
+
+        if (request.cronExpression != null) {
+            job.setCronExpression(request.cronExpression.trim());
+            job.setCronRepeat(request.cronRepeat != null ? Math.max(0, request.cronRepeat) : null);
+            job.setCronUntil(request.cronUntil);
+        } else if (request.waitDuration != null) {
+            job.setWaitDuration(request.waitDuration.trim());
+            job.setWaitStart(request.waitStart != null ? request.waitStart : WaitStart.SELF);
+            job.setWaitRepeat(request.waitRepeat != null ? Math.max(0, request.waitRepeat) : 1);
+            job.setWaitUntil(request.waitUntil);
+            Duration d = Duration.parse(request.waitDuration.trim());
+            job.setRunAt(now.plus(d));
+            job.setEffectiveRunAt(job.getRunAt());
+        } else if (request.runAt != null) {
+            job.setRunAt(request.runAt);
+            job.setEffectiveRunAt(request.runAt);
+        } else {
+            job.setRunAt(now);
+            job.setEffectiveRunAt(now);
+        }
+
+        job.setUpdatedAt(now);
+        job.setVersion(job.getVersion() + 1);
+
+        jobStore.update(job);
+        jobQueue.requeue(job);
+
+        return Response.ok(job).build();
+    }
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(

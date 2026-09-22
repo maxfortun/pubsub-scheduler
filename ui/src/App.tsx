@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ScheduledJob, JobStats, JobState, JobFilters, CreateJobRequest, TimingType } from './types';
-import { fetchJobs, fetchStats, cancelJob, createJob } from './api';
+import { fetchJobs, fetchStats, cancelJob, createJob, updateJob } from './api';
 import { AtTiming, DurationTiming, CronTiming } from './components';
 import './App.css';
 
@@ -22,13 +22,14 @@ function App() {
   });
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [timingType, setTimingType] = useState<TimingType>('DURATION');
   const [createForm, setCreateForm] = useState<CreateJobRequest>({
     destinationTopic: '',
     waitDuration: 'PT1M',
     messageValue: '',
   });
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -177,7 +178,39 @@ function App() {
     setCreateForm(f => ({ ...f, ...updates }));
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleEdit = (job: ScheduledJob) => {
+    setEditingJob(job);
+    setShowCreateForm(true);
+
+    // Determine timing type
+    let type: TimingType = 'DURATION';
+    if (job.cronExpression) {
+      type = 'CRON';
+    } else if (job.runAt && !job.waitDuration) {
+      type = 'AT';
+    }
+    setTimingType(type);
+
+    // Populate form
+    setCreateForm({
+      destinationTopic: job.destinationTopic,
+      jobKey: job.jobKey || undefined,
+      keyPolicy: job.keyPolicy,
+      runAt: job.runAt,
+      waitDuration: job.waitDuration || undefined,
+      waitStart: job.waitStart || undefined,
+      waitRepeat: job.waitRepeat || undefined,
+      waitUntil: job.waitUntil || undefined,
+      cronExpression: job.cronExpression || undefined,
+      cronUntil: job.cronUntil || undefined,
+      cronRepeat: job.cronRepeat || undefined,
+      maxRetries: job.maxRetries,
+      messageKey: job.messageKey || undefined,
+      messageValue: job.messageValue || undefined,
+    });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateForm();
     if (errors.length > 0) {
@@ -185,17 +218,30 @@ function App() {
       return;
     }
     try {
-      setCreating(true);
-      await createJob(createForm);
+      setSaving(true);
+      if (editingJob) {
+        await updateJob(editingJob.id, createForm);
+        setSelectedJob(null);
+      } else {
+        await createJob(createForm);
+      }
       setShowCreateForm(false);
+      setEditingJob(null);
       setTimingType('DURATION');
       setCreateForm({ destinationTopic: '', waitDuration: 'PT1M', messageValue: '' });
       loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create job');
+      alert(err instanceof Error ? err.message : 'Failed to save job');
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
+  };
+
+  const handleCloseForm = () => {
+    setShowCreateForm(false);
+    setEditingJob(null);
+    setTimingType('DURATION');
+    setCreateForm({ destinationTopic: '', waitDuration: 'PT1M', messageValue: '' });
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -241,13 +287,13 @@ function App() {
       {error && <div className="error">{error}</div>}
 
       {showCreateForm && (
-        <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
+        <div className="modal-overlay" onClick={handleCloseForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Job</h2>
-              <button className="close-btn" onClick={() => setShowCreateForm(false)}>x</button>
+              <h2>{editingJob ? 'Edit Job' : 'Create New Job'}</h2>
+              <button className="close-btn" onClick={handleCloseForm}>x</button>
             </div>
-            <form onSubmit={handleCreate} className="create-form">
+            <form onSubmit={handleSave} className="create-form">
               <div className="form-group">
                 <label>Destination Topic *</label>
                 <input
@@ -321,9 +367,9 @@ function App() {
                 />
               </div>
               <div className="form-actions">
-                <button type="button" onClick={() => setShowCreateForm(false)}>Cancel</button>
-                <button type="submit" className="create-btn" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Job'}
+                <button type="button" onClick={handleCloseForm}>Cancel</button>
+                <button type="submit" className="create-btn" disabled={saving}>
+                  {saving ? 'Saving...' : (editingJob ? 'Save Changes' : 'Create Job')}
                 </button>
               </div>
             </form>
@@ -636,6 +682,21 @@ function App() {
               </div>
               {(selectedJob.state === 'PENDING' || selectedJob.state === 'WAITING') && (
                 <div className="actions">
+                  <button
+                    className="edit-btn"
+                    onClick={() => handleEdit(selectedJob)}
+                    style={{
+                      background: '#3498db',
+                      border: 'none',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      marginRight: '8px'
+                    }}
+                  >
+                    Edit Job
+                  </button>
                   <button
                     className="cancel-btn"
                     onClick={() => handleCancel(selectedJob.id)}

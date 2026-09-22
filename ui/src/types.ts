@@ -28,6 +28,8 @@ export interface ScheduledJob {
   createdAt: string;
   updatedAt: string;
   version: number;
+  messageKey: string | null;
+  messageValue: string | null;
 }
 
 export interface JobStats {

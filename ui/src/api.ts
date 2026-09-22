@@ -43,3 +43,16 @@ export async function createJob(request: CreateJobRequest): Promise<ScheduledJob
   }
   return response.json();
 }
+
+export async function updateJob(id: string, request: CreateJobRequest): Promise<ScheduledJob> {
+  const response = await fetch(`${API_BASE}/jobs/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to update job' }));
+    throw new Error(error.error || 'Failed to update job');
+  }
+  return response.json();
+}
