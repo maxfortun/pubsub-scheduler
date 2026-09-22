@@ -48,15 +48,15 @@ All scheduler headers are prefixed with `SCHEDULER_`:
 |--------|----------|-------------|---------|
 | `SCHEDULER_DESTINATION` | Yes | Target topic for fired message | `orders.process` |
 | `SCHEDULER_AT` | No* | Absolute fire time (ISO 8601) — like `at` command | `2026-07-22T15:00:00Z` |
-| `SCHEDULER_SLEEP` | No* | Relative delay (ISO 8601 duration) — like `sleep` command | `PT5M` |
+| `SCHEDULER_WAIT` | No* | Relative delay (ISO 8601 duration) — like `sleep` command | `PT5M` |
 | `SCHEDULER_CRON` | No* | Cron expression for recurring jobs — like `cron` | `0 9 * * *` |
-| `SCHEDULER_SLEEP_START` | No | Reference for sleep: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
+| `SCHEDULER_WAIT_START` | No | Reference for wait: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
 | `SCHEDULER_KEY` | No | Job key for ordering | `order-123` |
 | `SCHEDULER_KEY_POLICY` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
 | `SCHEDULER_RETRY_COUNT` | No | Max retries (overrides global default) | `3` |
 | `SCHEDULER_ADVISORY_HEADERS` | No | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
 
-*`SCHEDULER_AT`, `SCHEDULER_SLEEP`, and `SCHEDULER_CRON` are mutually exclusive. If none specified, fires immediately.
+*`SCHEDULER_AT`, `SCHEDULER_WAIT`, and `SCHEDULER_CRON` are mutually exclusive. If none specified, fires immediately.
 
 ## Key Modes
 
@@ -71,7 +71,7 @@ Jobs can have a **key** for ordering. The mode controls behavior when a new job 
 ## Job State Machine
 
 ```
-WAITING ──▶ PENDING ──▶ ACQUIRED ──▶ FIRING ──▶ COMPLETE
+WAITING ──▶ PENDING ──▶ ACQUIRED ──▶ RUNNING ──▶ DONE
     │          │            │          │
     └──────────┴────────────┴──────────┴──────▶ FAILED
                                                   │
@@ -85,8 +85,8 @@ WAITING ──▶ PENDING ──▶ ACQUIRED ──▶ FIRING ──▶ COMPLETE
 | `WAITING` | Queued behind predecessor (QUEUE mode), not in DelayQueue |
 | `PENDING` | In DelayQueue, ready to fire when time comes |
 | `ACQUIRED` | Claimed by a scheduler instance |
-| `FIRING` | Publishing to destination in progress |
-| `COMPLETE` | Successfully published |
+| `RUNNING` | Publishing to destination in progress |
+| `DONE` | Successfully published |
 | `FAILED` | Failed after retries, triggers cascade for QUEUE mode |
 
 ## Advisory Events
@@ -117,7 +117,7 @@ Advisory events contain metadata only (no original payload). The `SCHEDULER_ADVI
 The scheduler uses `java.util.concurrent.DelayQueue` for precise, push-based timing:
 
 - `DelayQueue.take()` blocks until the next job is due — no polling interval
-- Each job implements `Delayed`, returning time remaining until `fire_at`
+- Each job implements `Delayed`, returning time remaining until `run_at`
 - Fire loop runs on a virtual thread, spawns a new virtual thread per job
 - Database is for persistence/recovery only, not the hot path
 

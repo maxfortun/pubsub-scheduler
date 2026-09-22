@@ -26,7 +26,7 @@ PubSub Scheduler sits between your producers and your message broker. Send a mes
 
 ```
 SCHEDULER_DESTINATION: orders.process
-SCHEDULER_SLEEP: PT5M
+SCHEDULER_WAIT: PT5M
 ```
 
 That's it. The message arrives at `orders.process` in 5 minutes.
@@ -40,7 +40,7 @@ That's it. The message arrives at `orders.process` in 5 minutes.
 | Method | Example | Use Case |
 |--------|---------|----------|
 | **Absolute** | `SCHEDULER_AT: 2026-09-20T15:00:00Z` | Scheduled reports, appointments |
-| **Relative** | `SCHEDULER_SLEEP: PT5M` | Retries, cooldowns, debouncing |
+| **Relative** | `SCHEDULER_WAIT: PT5M` | Retries, cooldowns, debouncing |
 | **Recurring** | `SCHEDULER_CRON: 0 9 * * *` | Daily jobs, periodic sync |
 
 ### Job Ordering & Deduplication
@@ -89,7 +89,7 @@ echo '{"order": 123}' | kafka-console-producer \
   --bootstrap-server localhost:9092 \
   --topic scheduler.in \
   --property parse.headers=true \
-  --property 'headers=SCHEDULER_DESTINATION:orders.process,SCHEDULER_SLEEP:PT5M'
+  --property 'headers=SCHEDULER_DESTINATION:orders.process,SCHEDULER_WAIT:PT5M'
 ```
 
 ---
@@ -101,7 +101,7 @@ echo '{"order": 123}' | kafka-console-producer \
 ```
 SCHEDULER_KEY: payment-456
 SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_SLEEP: PT30S
+SCHEDULER_WAIT: PT30S
 ```
 
 Retry failed payments with exponential backoff. REPLACE ensures only the latest retry is scheduled.
@@ -111,7 +111,7 @@ Retry failed payments with exponential backoff. REPLACE ensures only the latest 
 ```
 SCHEDULER_KEY: cart-user-789
 SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_SLEEP: PT1H
+SCHEDULER_WAIT: PT1H
 ```
 
 Send reminder 1 hour after last cart update. Each cart update resets the timer.
@@ -130,8 +130,8 @@ Run every day at 9am. Never overlap if yesterday's report is still running.
 ```
 SCHEDULER_KEY: api-sync
 SCHEDULER_KEY_POLICY: QUEUE
-SCHEDULER_SLEEP: PT1M
-SCHEDULER_SLEEP_START: PREV
+SCHEDULER_WAIT: PT1M
+SCHEDULER_WAIT_START: PREV
 ```
 
 Process API calls in order, with 1 minute between each. Perfect for rate-limited APIs.

@@ -50,6 +50,6 @@
   <text x="60" y="421.9" font-size="14" fill="#495057" text-anchor="start" >Message Headers:</text>
   <text x="60" y="444.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_DESTINATION: topic</text>
   <text x="60" y="457.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_AT: 2026-09-20T10:00:00Z</text>
-  <text x="60" y="470.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT5M</text>
+  <text x="60" y="470.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT: PT5M</text>
   <text x="60" y="483.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY: order-123</text>
 </svg>

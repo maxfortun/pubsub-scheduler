@@ -16,11 +16,11 @@ It's designed for production: CockroachDB-backed persistence for multi-region de
 
 | Feature | ActiveMQ | PubSub Scheduler |
 |---------|----------|------------------|
-| Delay | `AMQ_SCHEDULED_DELAY` (ms) | `SCHEDULER_SLEEP` (ISO 8601 duration) |
+| Delay | `AMQ_SCHEDULED_DELAY` (ms) | `SCHEDULER_WAIT` (ISO 8601 duration) |
 | Absolute time | Not supported | `SCHEDULER_AT` |
 | Cron | `AMQ_SCHEDULED_CRON` | `SCHEDULER_CRON` |
-| Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_SLEEP_REPEAT` |
-| Period | `AMQ_SCHEDULED_PERIOD` | `SCHEDULER_SLEEP` (with `SLEEP_REPEAT`) |
+| Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_WAIT_REPEAT` |
+| Period | `AMQ_SCHEDULED_PERIOD` | `SCHEDULER_WAIT` (with `WAIT_REPEAT`) |
 | Key-based ordering | Not supported | `SCHEDULER_KEY` + `SCHEDULER_KEY_POLICY` |
 | Prevent concurrent runs | Not supported | `SCHEDULER_CRON_CONCURRENT=false` |
 | Min gap between runs | Not supported | `SCHEDULER_CRON_GAP_MIN` |
@@ -258,7 +258,7 @@ Publish a message to `scheduler.in` with `SCHEDULER_*` headers:
 
 ```
 SCHEDULER_DESTINATION: orders.process
-SCHEDULER_SLEEP: PT5M
+SCHEDULER_WAIT: PT5M
 ```
 
 The scheduler will deliver the message to `orders.process` after 5 minutes.
@@ -272,7 +272,7 @@ All headers are prefixed with `SCHEDULER_`.
 | Header | Description | Example |
 |--------|-------------|---------|
 | `SCHEDULER_AT` | Absolute fire time (ISO 8601) | `2026-07-22T15:00:00Z` |
-| `SCHEDULER_SLEEP` | Relative delay (ISO 8601 duration) | `PT5M`, `PT1H30M` |
+| `SCHEDULER_WAIT` | Relative delay (ISO 8601 duration) | `PT5M`, `PT1H30M` |
 | `SCHEDULER_CRON` | Cron expression for recurring jobs | `0 9 * * *` |
 
 If none specified, fires immediately.
@@ -298,25 +298,25 @@ If none specified, fires immediately.
 | `REPLACE` | Cancel all pending/waiting jobs with same key, schedule this one. |
 | `SKIP` | Drop silently if any pending/waiting job with same key exists. |
 
-### Sleep Options
+### Wait Options
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_SLEEP_START` | Reference point for sleep (default: `SELF`) | `SELF`, `PREV` |
-| `SCHEDULER_SLEEP_REPEAT` | Number of times to repeat (default: 1, one-shot) | `10`, `-1` (infinite) |
+| `SCHEDULER_WAIT_START` | Reference point for sleep (default: `SELF`) | `SELF`, `PREV` |
+| `SCHEDULER_WAIT_REPEAT` | Number of times to repeat (default: 1, one-shot) | `10`, `-1` (infinite) |
 
-**Sleep Start:**
+**Wait Start:**
 
 | Value | Behavior |
 |-------|----------|
-| `SELF` | Sleep from this job's arrival time |
-| `PREV` | Sleep from predecessor's completion (requires `SCHEDULER_KEY` with `QUEUE` policy) |
+| `SELF` | Wait from this job's arrival time |
+| `PREV` | Wait from predecessor's completion (requires `SCHEDULER_KEY` with `QUEUE` policy) |
 
 **Example: Repeat every 5 minutes, 10 times**
 ```
 SCHEDULER_DESTINATION: health.check
-SCHEDULER_SLEEP: PT5M
-SCHEDULER_SLEEP_REPEAT: 10
+SCHEDULER_WAIT: PT5M
+SCHEDULER_WAIT_REPEAT: 10
 ```
 
 ### Cron Options
@@ -327,10 +327,10 @@ SCHEDULER_SLEEP_REPEAT: 10
 | `SCHEDULER_CRON_GAP_MIN` | Minimum delay between completions (ISO 8601 duration) | `PT10M` |
 | `SCHEDULER_CRON_GAP_POLICY` | Behavior when gap not met (default: `DELAY`) | `DELAY`, `SKIP` |
 | `SCHEDULER_CRON_MISFIRE_POLICY` | Behavior on missed execution (default: `SKIP`) | `SKIP`, `CATCH_UP` |
-| `SCHEDULER_CRON_END` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
-| `SCHEDULER_CRON_COUNT` | Max number of executions* | `100` |
+| `SCHEDULER_CRON_UNTIL` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
+| `SCHEDULER_CRON_REPEAT` | Max number of executions* | `100` |
 
-*`SCHEDULER_CRON_END` and `SCHEDULER_CRON_COUNT` are mutually exclusive.
+*`SCHEDULER_CRON_UNTIL` and `SCHEDULER_CRON_REPEAT` are mutually exclusive.
 
 **Cron Gap Policies:**
 
@@ -350,14 +350,14 @@ SCHEDULER_SLEEP_REPEAT: 10
 ```
 SCHEDULER_DESTINATION: reports.daily
 SCHEDULER_CRON: 0 9 * * *
-SCHEDULER_CRON_END: 2026-12-31T23:59:59Z
+SCHEDULER_CRON_UNTIL: 2026-12-31T23:59:59Z
 ```
 
 **Example: Daily job limited to 30 executions**
 ```
 SCHEDULER_DESTINATION: trial.reminder
 SCHEDULER_CRON: 0 9 * * *
-SCHEDULER_CRON_COUNT: 30
+SCHEDULER_CRON_REPEAT: 30
 ```
 
 ### Retry & Error Handling
@@ -485,7 +485,7 @@ To add a new transform type (e.g., `s3`, `redis`), implement `MessageTransformer
 
 ```
 SCHEDULER_DESTINATION: notifications.email
-SCHEDULER_SLEEP: PT1H
+SCHEDULER_WAIT: PT1H
 ```
 
 ### Scheduled at specific time
@@ -509,7 +509,7 @@ SCHEDULER_CRON_CONCURRENT: false
 SCHEDULER_DESTINATION: orders.process
 SCHEDULER_KEY: customer-456
 SCHEDULER_KEY_POLICY: QUEUE
-SCHEDULER_SLEEP: PT0S
+SCHEDULER_WAIT: PT0S
 ```
 
 ### Replace pending job
@@ -518,7 +518,7 @@ SCHEDULER_SLEEP: PT0S
 SCHEDULER_DESTINATION: cache.refresh
 SCHEDULER_KEY: product-789
 SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_SLEEP: PT30S
+SCHEDULER_WAIT: PT30S
 ```
 
 ### Rate-limited cron with minimum gap
@@ -1058,7 +1058,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 ![Message Flow](docs/diagrams/images/message-flow.png)
 
-*States: PENDING → ACQUIRED → FIRING → COMPLETE. Key policies determine queueing behavior.*
+*States: PENDING → ACQUIRED → RUNNING → DONE. Key policies determine queueing behavior.*
 
 #### Timing Options: AT, SLEEP, CRON
 
@@ -1072,9 +1072,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 *QUEUE: chain jobs in order. REPLACE: cancel existing. SKIP: drop duplicates.*
 
-#### Sleep Start: SELF vs PREV
+#### Wait Start: SELF vs PREV
 
-![Sleep Start](docs/diagrams/images/sleep-start.png)
+![Wait Start](docs/diagrams/images/wait-start.png)
 
 *SELF: sleep from arrival. PREV: sleep from predecessor completion (rate limiting).*
 

@@ -10,7 +10,7 @@
     .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
   </style>
   <text x="505" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >SLEEP_START: SELF vs PREV</text>
-  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >Controls the reference point for SCHEDULER_SLEEP duration when using QUEUE policy:</text>
+  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >Controls the reference point for SCHEDULER_WAIT duration when using QUEUE policy:</text>
   <rect x="50" y="100" width="450" height="250" fill="#e7f5ff" stroke="#1971c2" stroke-width="1" rx="8" />
   <text x="60" y="125.3" font-size="18" fill="#1971c2" text-anchor="start" >SLEEP_START: SELF (Default)</text>
   <text x="60" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Sleep duration counted from THIS job's arrival time.</text>
@@ -55,14 +55,14 @@
   <text x="70" y="435.2" font-size="12" fill="#1971c2" text-anchor="start" >SELF - Fixed schedule:</text>
   <text x="70" y="454.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY: api-sync</text>
   <text x="70" y="467.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY_POLICY: QUEUE</text>
-  <text x="70" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT1M</text>
-  <text x="70" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP_START: SELF</text>
+  <text x="70" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT: PT1M</text>
+  <text x="70" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT_START: SELF</text>
   <rect x="500" y="420" width="460" height="100" fill="#fff" stroke="#e67700" stroke-width="1" rx="8" />
   <text x="510" y="435.2" font-size="12" fill="#e67700" text-anchor="start" >PREV - Fixed gap after completion:</text>
   <text x="510" y="454.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY: api-sync</text>
   <text x="510" y="467.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_KEY_POLICY: QUEUE</text>
-  <text x="510" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP: PT1M</text>
-  <text x="510" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_SLEEP_START: PREV  ← wait 1min after prev completes</text>
+  <text x="510" y="480.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT: PT1M</text>
+  <text x="510" y="493.95000000000005" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT_START: PREV  ← wait 1min after prev completes</text>
   <text x="50" y="560.2" font-size="12" fill="#495057" text-anchor="start" >Use PREV when: API rate limits (1 req/min), resource cooldowns, ensuring processing gap.</text>
   <text x="50" y="574.6" font-size="12" fill="#495057" text-anchor="start" >Use SELF when: Fixed schedule regardless of duration, parallel-safe operations.</text>
 </svg>

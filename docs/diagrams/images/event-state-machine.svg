@@ -90,7 +90,7 @@
   <!-- Arrow from PROMOTED to RUNNING -->
   <path d="M550 310 L480 390" fill="none" stroke="#2f9e44" stroke-width="2" marker-end="url(#arrowhead-green)"/>
 
-  <!-- Arrow from RUNNING to COMPLETE -->
+  <!-- Arrow from RUNNING to DONE -->
   <path d="M380 430 L270 475" fill="none" stroke="#2f9e44" stroke-width="2" marker-end="url(#arrowhead-green)"/>
   <text x="290" y="455" font-family="Arial, sans-serif" font-size="11" fill="#2f9e44">success</text>
 
@@ -98,11 +98,11 @@
   <path d="M450 430 L560 475" fill="none" stroke="#c92a2a" stroke-width="2" marker-end="url(#arrowhead-red)"/>
   <text x="490" y="455" font-family="Arial, sans-serif" font-size="11" fill="#c92a2a">failure</text>
 
-  <!-- Arrow from COMPLETE to EXPIRED -->
+  <!-- Arrow from DONE to EXPIRED -->
   <path d="M245 530 L245 575" fill="none" stroke="#5c940d" stroke-width="2" marker-end="url(#arrowhead-green)"/>
   <text x="255" y="558" font-family="Arial, sans-serif" font-size="11" fill="#5c940d">if recurring</text>
 
-  <!-- Loop arrow from COMPLETE back to RUNNING -->
+  <!-- Loop arrow from DONE back to RUNNING -->
   <path d="M310 490 L340 490 L340 430 L350 420" fill="none" stroke="#5c940d" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowhead-green)"/>
   <text x="345" y="465" font-family="Arial, sans-serif" font-size="10" fill="#5c940d">repeat</text>
 

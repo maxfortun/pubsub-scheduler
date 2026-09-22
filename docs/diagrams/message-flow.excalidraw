@@ -230,7 +230,7 @@
       "y": 115,
       "width": 160,
       "height": 60,
-      "text": "Job added to\nin-memory DelayQueue\nwaiting for fireAt time",
+      "text": "Job added to\nin-memory DelayQueue\nwaiting for runAt time",
       "fontSize": 11,
       "fontFamily": 1
     },
@@ -287,7 +287,7 @@
       "y": 265,
       "width": 160,
       "height": 60,
-      "text": "Time reached!\nOptimistic lock in DB\nState: ACQUIRED\nAdvisory: JOB_FIRING",
+      "text": "Time reached!\nOptimistic lock in DB\nState: ACQUIRED\nAdvisory: JOB_RUNNING",
       "fontSize": 11,
       "fontFamily": 1
     },
@@ -401,7 +401,7 @@
       "y": 265,
       "width": 160,
       "height": 60,
-      "text": "Publish to\ndestination topic\nState: COMPLETE\nAdvisory: JOB_COMPLETE",
+      "text": "Publish to\ndestination topic\nState: DONE\nAdvisory: JOB_DONE",
       "fontSize": 11,
       "fontFamily": 1
     },
@@ -505,7 +505,7 @@
       "y": 417,
       "width": 50,
       "height": 16,
-      "text": "FIRING",
+      "text": "RUNNING",
       "fontSize": 11,
       "fontFamily": 1
     },
@@ -528,7 +528,7 @@
       "y": 417,
       "width": 70,
       "height": 16,
-      "text": "COMPLETE",
+      "text": "DONE",
       "fontSize": 11,
       "fontFamily": 1
     },
