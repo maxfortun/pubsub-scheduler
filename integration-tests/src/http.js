@@ -37,7 +37,7 @@ export async function getInstances() {
 }
 
 export async function getStats() {
-  return getJson('/api/stats');
+  return getJson('/api/jobs/stats');
 }
 
 export async function getJobs(params = {}) {
