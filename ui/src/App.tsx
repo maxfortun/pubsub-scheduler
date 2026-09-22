@@ -4,6 +4,12 @@ import { fetchJobs, fetchStats, cancelJob, createJob, updateJob } from './api';
 import { AtTiming, DurationTiming, CronTiming } from './components';
 import './App.css';
 
+interface UIConfig {
+  name: string;
+  color: string;
+  instanceId: string;
+}
+
 function App() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [stats, setStats] = useState<JobStats | null>(null);
@@ -11,6 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<ScheduledJob | null>(null);
+  const [config, setConfig] = useState<UIConfig>({ name: 'Scheduler', color: '', instanceId: '' });
   const [filters, setFilters] = useState<JobFilters>({
     offset: 0,
     limit: 20,
@@ -54,6 +61,13 @@ function App() {
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(setConfig)
+      .catch(() => {});
+  }, []);
 
   const handleCancel = async (id: string) => {
     if (!confirm('Are you sure you want to cancel this job?')) return;
@@ -273,7 +287,7 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Scheduler</h1>
+        <h1 style={config.color ? { color: config.color } : undefined}>{config.name}</h1>
         <div className="header-actions">
           <button className="create-btn" onClick={() => setShowCreateForm(true)}>
             + New Job

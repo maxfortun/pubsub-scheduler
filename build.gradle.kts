@@ -32,6 +32,7 @@ dependencies {
 
     // Database
     implementation("io.quarkus:quarkus-jdbc-postgresql")
+    implementation("io.quarkus:quarkus-jdbc-mysql")
     implementation("io.quarkus:quarkus-agroal")
 
     // Secret providers (optional - include what you need)
