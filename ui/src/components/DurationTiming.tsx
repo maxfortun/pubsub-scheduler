@@ -60,7 +60,7 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
           <div className="field-hint">1 = once, 0 = infinite</div>
         </div>
         <div className="form-group">
-          <label>Or Until</label>
+          <label>Until</label>
           <input
             type="datetime-local"
             value={waitUntilLocal}

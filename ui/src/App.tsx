@@ -15,6 +15,12 @@ function App() {
     offset: 0,
     limit: 20,
   });
+  const [columnFilters, setColumnFilters] = useState({
+    states: [] as JobState[],
+    key: '',
+    destination: '',
+  });
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [timingType, setTimingType] = useState<TimingType>('DURATION');
   const [createForm, setCreateForm] = useState<CreateJobRequest>({
@@ -59,13 +65,48 @@ function App() {
     }
   };
 
-  const handleStateFilter = (state: JobState | '') => {
-    setFilters(f => ({ ...f, state: state || undefined, offset: 0 }));
+  const handleColumnFilter = (column: string, value: string) => {
+    setColumnFilters(f => ({ ...f, [column]: value }));
+    if (column === 'key') {
+      setFilters(f => ({ ...f, key: value || undefined, offset: 0 }));
+    }
+    setActiveFilter(null);
   };
 
-  const handleKeyFilter = (key: string) => {
-    setFilters(f => ({ ...f, key: key || undefined, offset: 0 }));
+  const handleStateToggle = (state: JobState) => {
+    setColumnFilters(f => {
+      const newStates = f.states.includes(state)
+        ? f.states.filter(s => s !== state)
+        : [...f.states, state];
+      return { ...f, states: newStates };
+    });
   };
+
+  const clearColumnFilter = (column: string) => {
+    if (column === 'states') {
+      setColumnFilters(f => ({ ...f, states: [] }));
+    } else {
+      setColumnFilters(f => ({ ...f, [column]: '' }));
+    }
+    if (column === 'key') {
+      setFilters(f => ({ ...f, key: undefined, offset: 0 }));
+    }
+  };
+
+  const getUniqueDestinations = () => {
+    const destinations = new Set(jobs.map(j => j.destinationTopic));
+    return Array.from(destinations).sort();
+  };
+
+  const filteredJobs = jobs.filter(job => {
+    if (columnFilters.states.length > 0 && !columnFilters.states.includes(job.state)) {
+      return false;
+    }
+    if (columnFilters.destination && job.destinationTopic !== columnFilters.destination) {
+      return false;
+    }
+    return true;
+  });
 
   const handlePageChange = (newOffset: number) => {
     setFilters(f => ({ ...f, offset: Math.max(0, newOffset) }));
@@ -157,8 +198,11 @@ function App() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
   };
 
   const getStateColor = (state: JobState) => {
@@ -316,26 +360,19 @@ function App() {
         </div>
       )}
 
-      <div className="filters">
-        <select
-          value={filters.state || ''}
-          onChange={e => handleStateFilter(e.target.value as JobState | '')}
-        >
-          <option value="">All States</option>
-          <option value="PENDING">Pending</option>
-          <option value="WAITING">Waiting</option>
-          <option value="ACQUIRED">Acquired</option>
-          <option value="RUNNING">Running</option>
-          <option value="DONE">Done</option>
-          <option value="FAILED">Failed</option>
-        </select>
-        <input
-          type="text"
-          placeholder="Filter by job key..."
-          value={filters.key || ''}
-          onChange={e => handleKeyFilter(e.target.value)}
-        />
-        <span className="total-count">{total} jobs</span>
+      <div className="filters-bar">
+        <span className="total-count">{total} jobs total, {filteredJobs.length} shown</span>
+        {(columnFilters.states.length > 0 || columnFilters.key || columnFilters.destination) && (
+          <button
+            className="clear-filters-btn"
+            onClick={() => {
+              setColumnFilters({ states: [], key: '', destination: '' });
+              setFilters(f => ({ ...f, state: undefined, key: undefined, offset: 0 }));
+            }}
+          >
+            Clear All Filters
+          </button>
+        )}
       </div>
 
       <div className="main-content">
@@ -343,16 +380,99 @@ function App() {
           <table>
             <thead>
               <tr>
-                <th>State</th>
-                <th>Job Key</th>
-                <th>Destination</th>
-                <th>Fire At</th>
+                <th className="filterable-header">
+                  <div className="header-content">
+                    <span>State {columnFilters.states.length > 0 && `(${columnFilters.states.length})`}</span>
+                    <button
+                      className={`filter-btn ${columnFilters.states.length > 0 ? 'active' : ''}`}
+                      onClick={() => setActiveFilter(activeFilter === 'state' ? null : 'state')}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  {activeFilter === 'state' && (
+                    <div className="filter-dropdown checkbox-dropdown">
+                      {(['PENDING', 'WAITING', 'ACQUIRED', 'RUNNING', 'DONE', 'FAILED'] as JobState[]).map(state => (
+                        <label key={state} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={columnFilters.states.includes(state)}
+                            onChange={() => handleStateToggle(state)}
+                          />
+                          <span
+                            className="state-badge-small"
+                            style={{ backgroundColor: getStateColor(state) }}
+                          >
+                            {state}
+                          </span>
+                        </label>
+                      ))}
+                      {columnFilters.states.length > 0 && (
+                        <button className="clear-btn" onClick={() => clearColumnFilter('states')}>Clear All</button>
+                      )}
+                    </div>
+                  )}
+                </th>
+                <th className="filterable-header">
+                  <div className="header-content">
+                    <span>Job Key</span>
+                    <button
+                      className={`filter-btn ${columnFilters.key ? 'active' : ''}`}
+                      onClick={() => setActiveFilter(activeFilter === 'key' ? null : 'key')}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  {activeFilter === 'key' && (
+                    <div className="filter-dropdown">
+                      <input
+                        type="text"
+                        placeholder="Filter by key..."
+                        value={columnFilters.key}
+                        onChange={e => handleColumnFilter('key', e.target.value)}
+                        autoFocus
+                      />
+                      {columnFilters.key && (
+                        <button className="clear-btn" onClick={() => clearColumnFilter('key')}>Clear</button>
+                      )}
+                    </div>
+                  )}
+                </th>
+                <th className="filterable-header">
+                  <div className="header-content">
+                    <span>Destination</span>
+                    <button
+                      className={`filter-btn ${columnFilters.destination ? 'active' : ''}`}
+                      onClick={() => setActiveFilter(activeFilter === 'destination' ? null : 'destination')}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  {activeFilter === 'destination' && (
+                    <div className="filter-dropdown">
+                      <select
+                        value={columnFilters.destination}
+                        onChange={e => handleColumnFilter('destination', e.target.value)}
+                        autoFocus
+                      >
+                        <option value="">All Destinations</option>
+                        {getUniqueDestinations().map(dest => (
+                          <option key={dest} value={dest}>{dest}</option>
+                        ))}
+                      </select>
+                      {columnFilters.destination && (
+                        <button className="clear-btn" onClick={() => clearColumnFilter('destination')}>Clear</button>
+                      )}
+                    </div>
+                  )}
+                </th>
+                <th>Run At</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {jobs.map(job => (
+              {filteredJobs.map(job => (
                 <tr
                   key={job.id}
                   onClick={() => setSelectedJob(job)}
@@ -368,7 +488,7 @@ function App() {
                   </td>
                   <td className="job-key">{job.jobKey || '-'}</td>
                   <td className="destination">{job.destinationTopic}</td>
-                  <td>{formatDate(job.effectiveRunAt)}</td>
+                  <td>{formatDate(job.effectiveRunAt || job.runAt)}</td>
                   <td>{formatDate(job.createdAt)}</td>
                   <td className="actions-cell">
                     {isCancellable(job.state) && (
@@ -383,7 +503,7 @@ function App() {
                   </td>
                 </tr>
               ))}
-              {jobs.length === 0 && (
+              {filteredJobs.length === 0 && (
                 <tr>
                   <td colSpan={6} className="no-data">No jobs found</td>
                 </tr>
