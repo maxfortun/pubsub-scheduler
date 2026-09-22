@@ -18,14 +18,13 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<ScheduledJob | null>(null);
   const [config, setConfig] = useState<UIConfig>({ name: 'Scheduler', color: '', instanceId: '' });
-  const [filters, setFilters] = useState<JobFilters>({
-    offset: 0,
-    limit: 20,
+  const [filters, setFilters] = useState<JobFilters>(() => {
+    const saved = localStorage.getItem('scheduler-filters');
+    return saved ? { ...JSON.parse(saved), offset: 0 } : { offset: 0, limit: 20 };
   });
-  const [columnFilters, setColumnFilters] = useState({
-    states: [] as JobState[],
-    key: '',
-    destination: '',
+  const [columnFilters, setColumnFilters] = useState<{ states: JobState[]; key: string; destination: string }>(() => {
+    const saved = localStorage.getItem('scheduler-column-filters');
+    return saved ? JSON.parse(saved) : { states: [], key: '', destination: '' };
   });
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -74,6 +73,14 @@ function App() {
       .then(setConfig)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('scheduler-filters', JSON.stringify({ limit: filters.limit }));
+  }, [filters.limit]);
+
+  useEffect(() => {
+    localStorage.setItem('scheduler-column-filters', JSON.stringify(columnFilters));
+  }, [columnFilters]);
 
   const handleCancel = async (id: string) => {
     if (!confirm('Are you sure you want to cancel this job?')) return;
