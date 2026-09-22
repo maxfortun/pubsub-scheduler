@@ -297,8 +297,8 @@ class JobResourceTest {
             .body("pending", equalTo(10))
             .body("waiting", equalTo(5))
             .body("acquired", equalTo(2))
-            .body("firing", equalTo(1))
-            .body("complete", equalTo(100))
+            .body("running", equalTo(1))
+            .body("done", equalTo(100))
             .body("failed", equalTo(3));
     }
 

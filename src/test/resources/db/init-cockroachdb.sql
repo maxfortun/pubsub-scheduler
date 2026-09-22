@@ -13,16 +13,17 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_key STRING,
     key_policy STRING NOT NULL DEFAULT 'QUEUE',
-    sleep_start STRING NOT NULL DEFAULT 'SELF',
-    sleep_duration STRING,
-    sleep_repeat INT NOT NULL DEFAULT 1,
+    wait_start STRING NOT NULL DEFAULT 'SELF',
+    wait_duration STRING,
+    wait_repeat INT NOT NULL DEFAULT 1,
+    wait_until TIMESTAMPTZ,
     cron_expression STRING,
-    cron_end TIMESTAMPTZ,
-    cron_max_count INT,
-    cron_fire_count INT NOT NULL DEFAULT 0,
+    cron_until TIMESTAMPTZ,
+    cron_repeat INT,
+    cron_run_count INT NOT NULL DEFAULT 0,
 
-    fire_at TIMESTAMPTZ NOT NULL,
-    effective_fire_at TIMESTAMPTZ,
+    run_at TIMESTAMPTZ NOT NULL,
+    effective_run_at TIMESTAMPTZ,
     arrived_at TIMESTAMPTZ NOT NULL,
 
     destination_topic STRING NOT NULL,
@@ -46,10 +47,10 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
 
     last_error STRING,
 
-    INDEX idx_scheduled_jobs_pending_fire (effective_fire_at) WHERE state = 'PENDING',
+    INDEX idx_scheduled_jobs_pending_run (effective_run_at) WHERE state = 'PENDING',
     INDEX idx_scheduled_jobs_key_state (job_key, state) WHERE job_key IS NOT NULL,
     INDEX idx_scheduled_jobs_predecessor (predecessor_id) WHERE predecessor_id IS NOT NULL,
-    INDEX idx_scheduled_jobs_acquired (acquired_by, acquired_at) WHERE state = 'ACQUIRED' OR state = 'FIRING'
+    INDEX idx_scheduled_jobs_acquired (acquired_by, acquired_at) WHERE state = 'ACQUIRED' OR state = 'RUNNING'
 );
 
 -- Scheduler instances table for heartbeat-based shard discovery

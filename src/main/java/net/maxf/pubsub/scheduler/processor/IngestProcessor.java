@@ -35,17 +35,18 @@ public class IngestProcessor implements Processor {
 
     private static final String HEADER_PREFIX = "SCHEDULER_";
     private static final String HEADER_AT = HEADER_PREFIX + "AT";
-    private static final String HEADER_SLEEP = HEADER_PREFIX + "SLEEP";
+    private static final String HEADER_WAIT = HEADER_PREFIX + "WAIT";
     private static final String HEADER_CRON = HEADER_PREFIX + "CRON";
-    private static final String HEADER_SLEEP_START = HEADER_PREFIX + "SLEEP_START";
-    private static final String HEADER_SLEEP_REPEAT = HEADER_PREFIX + "SLEEP_REPEAT";
+    private static final String HEADER_WAIT_START = HEADER_PREFIX + "WAIT_START";
+    private static final String HEADER_WAIT_REPEAT = HEADER_PREFIX + "WAIT_REPEAT";
+    private static final String HEADER_WAIT_UNTIL = HEADER_PREFIX + "WAIT_UNTIL";
     private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
     private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
     private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
     private static final String HEADER_RETRY_COUNT = HEADER_PREFIX + "RETRY_COUNT";
     private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "ADVISORY_HEADERS";
-    private static final String HEADER_CRON_END = HEADER_PREFIX + "CRON_END";
-    private static final String HEADER_CRON_COUNT = HEADER_PREFIX + "CRON_COUNT";
+    private static final String HEADER_CRON_UNTIL = HEADER_PREFIX + "CRON_UNTIL";
+    private static final String HEADER_CRON_REPEAT = HEADER_PREFIX + "CRON_REPEAT";
 
     @Inject
     JobStoreService jobStore;
@@ -69,28 +70,34 @@ public class IngestProcessor implements Processor {
         }
         job.setDestinationTopic(destination);
 
-        // Timing: AT, SLEEP, or CRON (mutually exclusive)
+        // Timing: AT, WAIT, or CRON (mutually exclusive)
         String atStr = message.getHeader(HEADER_AT, String.class);
-        String sleepStr = message.getHeader(HEADER_SLEEP, String.class);
+        String waitStr = message.getHeader(HEADER_WAIT, String.class);
         String cronStr = message.getHeader(HEADER_CRON, String.class);
 
-        int timingCount = (atStr != null ? 1 : 0) + (sleepStr != null ? 1 : 0) + (cronStr != null ? 1 : 0);
+        int timingCount = (atStr != null ? 1 : 0) + (waitStr != null ? 1 : 0) + (cronStr != null ? 1 : 0);
         if (timingCount > 1) {
-            throw new IllegalArgumentException("SCHEDULER_AT, SCHEDULER_SLEEP, and SCHEDULER_CRON are mutually exclusive");
+            throw new IllegalArgumentException("SCHEDULER_AT, SCHEDULER_WAIT, and SCHEDULER_CRON are mutually exclusive");
         }
 
         if (atStr != null) {
             job.setRunAt(Instant.parse(atStr));
-        } else if (sleepStr != null) {
-            Duration sleep = Duration.parse(sleepStr);
-            job.setRunAt(Instant.now().plus(sleep));
-            job.setWaitDuration(sleepStr);
+        } else if (waitStr != null) {
+            Duration wait = Duration.parse(waitStr);
+            job.setRunAt(Instant.now().plus(wait));
+            job.setWaitDuration(waitStr);
+
+            // Wait until - absolute end time for repeated waits
+            String waitUntilStr = message.getHeader(HEADER_WAIT_UNTIL, String.class);
+            if (waitUntilStr != null) {
+                job.setWaitUntil(Instant.parse(waitUntilStr));
+            }
         } else if (cronStr != null) {
             // Cron end conditions (mutually exclusive) - validate first
-            String cronUntilStr = message.getHeader(HEADER_CRON_END, String.class);
-            Integer cronCount = message.getHeader(HEADER_CRON_COUNT, Integer.class);
-            if (cronUntilStr != null && cronCount != null) {
-                throw new IllegalArgumentException("SCHEDULER_CRON_END and SCHEDULER_CRON_COUNT are mutually exclusive");
+            String cronUntilStr = message.getHeader(HEADER_CRON_UNTIL, String.class);
+            Integer cronRepeat = message.getHeader(HEADER_CRON_REPEAT, Integer.class);
+            if (cronUntilStr != null && cronRepeat != null) {
+                throw new IllegalArgumentException("SCHEDULER_CRON_UNTIL and SCHEDULER_CRON_REPEAT are mutually exclusive");
             }
 
             job.setCronExpression(cronStr);
@@ -99,20 +106,20 @@ public class IngestProcessor implements Processor {
             if (cronUntilStr != null) {
                 job.setCronUntil(Instant.parse(cronUntilStr));
             }
-            if (cronCount != null) {
-                job.setCronRepeat(cronCount);
+            if (cronRepeat != null) {
+                job.setCronRepeat(cronRepeat);
             }
         } else {
             // Immediate
             job.setRunAt(Instant.now());
         }
 
-        // Sleep options (only applies to SLEEP)
-        String waitStartStr = message.getHeader(HEADER_SLEEP_START, String.class);
+        // Wait options (only applies to WAIT timing)
+        String waitStartStr = message.getHeader(HEADER_WAIT_START, String.class);
         if (waitStartStr != null) {
             job.setWaitStart(WaitStart.valueOf(waitStartStr.toUpperCase()));
         }
-        Integer waitRepeat = message.getHeader(HEADER_SLEEP_REPEAT, Integer.class);
+        Integer waitRepeat = message.getHeader(HEADER_WAIT_REPEAT, Integer.class);
         if (waitRepeat != null) {
             job.setWaitRepeat(waitRepeat);
         }

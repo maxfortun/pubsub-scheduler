@@ -217,8 +217,8 @@ class DockerIntegrationTest {
                 .body("pending", equalTo(0))
                 .body("waiting", equalTo(0))
                 .body("acquired", equalTo(0))
-                .body("firing", equalTo(0))
-                .body("complete", equalTo(0))
+                .body("running", equalTo(0))
+                .body("done", equalTo(0))
                 .body("failed", equalTo(0));
     }
 

@@ -141,7 +141,7 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT30M"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT30M"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -182,7 +182,7 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_AT", Instant.now().plus(1, ChronoUnit.HOURS).toString()));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT1H"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
@@ -230,15 +230,15 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_CRON", "0 0 * * *"));
-            record.headers().add(header("SCHEDULER_CRON_END", Instant.now().plus(30, ChronoUnit.DAYS).toString()));
-            record.headers().add(header("SCHEDULER_CRON_COUNT", "5"));
+            record.headers().add(header("SCHEDULER_CRON_UNTIL", Instant.now().plus(30, ChronoUnit.DAYS).toString()));
+            record.headers().add(header("SCHEDULER_CRON_REPEAT", "5"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
             assertNotNull(dlqRecord, "Expected message in DLQ with correlationId: " + correlationId);
 
             String error = getHeader(dlqRecord, "SCHEDULER_ERROR");
-            assertTrue(error.contains("SCHEDULER_CRON_END") && error.contains("SCHEDULER_CRON_COUNT"));
+            assertTrue(error.contains("SCHEDULER_CRON_UNTIL") && error.contains("SCHEDULER_CRON_REPEAT"));
         }
     }
 
@@ -254,8 +254,8 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
-            record.headers().add(header("SCHEDULER_SLEEP_START", "SELF"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT1H"));
+            record.headers().add(header("SCHEDULER_WAIT_START", "SELF"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -273,8 +273,8 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
-            record.headers().add(header("SCHEDULER_SLEEP_START", "prev"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT1H"));
+            record.headers().add(header("SCHEDULER_WAIT_START", "prev"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -292,8 +292,8 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT15M"));
-            record.headers().add(header("SCHEDULER_SLEEP_REPEAT", "5"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT15M"));
+            record.headers().add(header("SCHEDULER_WAIT_REPEAT", "5"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -664,7 +664,7 @@ abstract class AbstractKafkaIT {
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
-            record.headers().add(header("SCHEDULER_SLEEP", "not-a-duration"));
+            record.headers().add(header("SCHEDULER_WAIT", "not-a-duration"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
@@ -678,8 +678,8 @@ abstract class AbstractKafkaIT {
 
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, correlationId.getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT1H"));
-            record.headers().add(header("SCHEDULER_SLEEP_START", "INVALID"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT1H"));
+            record.headers().add(header("SCHEDULER_WAIT_START", "INVALID"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             ConsumerRecord<String, byte[]> dlqRecord = pollDlqForMessage(correlationId, Duration.ofSeconds(30));
@@ -746,9 +746,9 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT15M"));
-            record.headers().add(header("SCHEDULER_SLEEP_START", "PREV"));
-            record.headers().add(header("SCHEDULER_SLEEP_REPEAT", "10"));
+            record.headers().add(header("SCHEDULER_WAIT", "PT15M"));
+            record.headers().add(header("SCHEDULER_WAIT_START", "PREV"));
+            record.headers().add(header("SCHEDULER_WAIT_REPEAT", "10"));
             record.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
@@ -774,7 +774,7 @@ abstract class AbstractKafkaIT {
         void immediateJob_firesAndCompletes() throws Exception {
             String jobKey = "immediate-state-test-" + UUID.randomUUID();
 
-            // Send immediate job (no SCHEDULER_AT or SCHEDULER_SLEEP)
+            // Send immediate job (no SCHEDULER_AT or SCHEDULER_WAIT)
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "test-body".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
@@ -844,8 +844,8 @@ abstract class AbstractKafkaIT {
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "repeat-test".getBytes());
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
-            record.headers().add(header("SCHEDULER_SLEEP", "PT5M")); // 5 minute sleep
-            record.headers().add(header("SCHEDULER_SLEEP_REPEAT", "10")); // Repeat 10 times
+            record.headers().add(header("SCHEDULER_WAIT", "PT5M")); // 5 minute sleep
+            record.headers().add(header("SCHEDULER_WAIT_REPEAT", "10")); // Repeat 10 times
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -1081,7 +1081,7 @@ abstract class AbstractKafkaIT {
             // Stats should have non-negative counts
             assertTrue(stats.pending() >= 0, "Pending count should be non-negative");
             assertTrue(stats.waiting() >= 0, "Waiting count should be non-negative");
-            assertTrue(stats.complete() >= 0, "Complete count should be non-negative");
+            assertTrue(stats.done() >= 0, "Complete count should be non-negative");
             assertTrue(stats.failed() >= 0, "Failed count should be non-negative");
         }
     }
@@ -1153,7 +1153,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_CRON", "0 * * * *")); // Every hour
-            record.headers().add(header("SCHEDULER_CRON_COUNT", "10")); // Max 10 executions
+            record.headers().add(header("SCHEDULER_CRON_REPEAT", "10")); // Max 10 executions
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -1176,7 +1176,7 @@ abstract class AbstractKafkaIT {
             record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record.headers().add(header("SCHEDULER_KEY", jobKey));
             record.headers().add(header("SCHEDULER_CRON", "0 0 * * *")); // Daily
-            record.headers().add(header("SCHEDULER_CRON_END", endTime.toString()));
+            record.headers().add(header("SCHEDULER_CRON_UNTIL", endTime.toString()));
             producer.send(record).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
@@ -1407,7 +1407,7 @@ abstract class AbstractKafkaIT {
             var stats = jobStore.getStats();
 
             assertTrue(stats.pending() >= 0, "Pending count should be non-negative");
-            assertTrue(stats.complete() >= 0, "Complete count should be non-negative");
+            assertTrue(stats.done() >= 0, "Complete count should be non-negative");
             assertTrue(stats.failed() >= 0, "Failed count should be non-negative");
         }
     }
@@ -1585,7 +1585,7 @@ abstract class AbstractKafkaIT {
         void jobStats_areAvailable() {
             var stats = jobStore.getStats();
             assertNotNull(stats, "Stats should be available");
-            assertTrue(stats.pending() >= 0 && stats.complete() >= 0,
+            assertTrue(stats.pending() >= 0 && stats.done() >= 0,
                 "Stats should have valid counts");
         }
     }
@@ -1615,8 +1615,8 @@ abstract class AbstractKafkaIT {
             record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record2.headers().add(header("SCHEDULER_KEY", jobKey));
             record2.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
-            record2.headers().add(header("SCHEDULER_SLEEP", "PT2S"));
-            record2.headers().add(header("SCHEDULER_SLEEP_START", "PREV"));
+            record2.headers().add(header("SCHEDULER_WAIT", "PT2S"));
+            record2.headers().add(header("SCHEDULER_WAIT_START", "PREV"));
             producer.send(record2).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);

@@ -5,16 +5,17 @@ CREATE TABLE scheduled_jobs (
     id UUID PRIMARY KEY,
     job_key TEXT,
     key_policy TEXT NOT NULL DEFAULT 'QUEUE',
-    sleep_start TEXT NOT NULL DEFAULT 'SELF',
-    sleep_duration TEXT,
-    sleep_repeat INT NOT NULL DEFAULT 1,
+    wait_start TEXT NOT NULL DEFAULT 'SELF',
+    wait_duration TEXT,
+    wait_repeat INT NOT NULL DEFAULT 1,
+    wait_until TIMESTAMPTZ,
     cron_expression TEXT,
-    cron_end TIMESTAMPTZ,
-    cron_max_count INT,
-    cron_fire_count INT NOT NULL DEFAULT 0,
+    cron_until TIMESTAMPTZ,
+    cron_repeat INT,
+    cron_run_count INT NOT NULL DEFAULT 0,
 
-    fire_at TIMESTAMPTZ NOT NULL,
-    effective_fire_at TIMESTAMPTZ,
+    run_at TIMESTAMPTZ NOT NULL,
+    effective_run_at TIMESTAMPTZ,
     arrived_at TIMESTAMPTZ NOT NULL,
 
     destination_topic TEXT NOT NULL,
@@ -39,9 +40,9 @@ CREATE TABLE scheduled_jobs (
     last_error TEXT
 );
 
--- Index for polling pending jobs by fire time
-CREATE INDEX idx_scheduled_jobs_pending_fire
-    ON scheduled_jobs (effective_fire_at)
+-- Index for polling pending jobs by run time
+CREATE INDEX idx_scheduled_jobs_pending_run
+    ON scheduled_jobs (effective_run_at)
     WHERE state = 'PENDING';
 
 -- Index for finding jobs by key (for QUEUE/REPLACE/SKIP logic)
@@ -57,7 +58,7 @@ CREATE INDEX idx_scheduled_jobs_predecessor
 -- Index for recovery: find jobs that were acquired but not completed
 CREATE INDEX idx_scheduled_jobs_acquired
     ON scheduled_jobs (acquired_by, acquired_at)
-    WHERE state = 'ACQUIRED' OR state = 'FIRING';
+    WHERE state = 'ACQUIRED' OR state = 'RUNNING';
 
 -- Scheduler instances table for heartbeat-based shard discovery
 CREATE TABLE scheduler_instances (

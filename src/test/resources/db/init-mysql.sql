@@ -5,16 +5,17 @@ CREATE TABLE scheduled_jobs (
     id CHAR(36) PRIMARY KEY,
     job_key VARCHAR(255),
     key_policy VARCHAR(50) NOT NULL DEFAULT 'QUEUE',
-    sleep_start VARCHAR(50) NOT NULL DEFAULT 'SELF',
-    sleep_duration VARCHAR(50),
-    sleep_repeat INT NOT NULL DEFAULT 1,
+    wait_start VARCHAR(50) NOT NULL DEFAULT 'SELF',
+    wait_duration VARCHAR(50),
+    wait_repeat INT NOT NULL DEFAULT 1,
+    wait_until TIMESTAMP(6) NULL,
     cron_expression VARCHAR(255),
-    cron_end TIMESTAMP(6) NULL,
-    cron_max_count INT,
-    cron_fire_count INT NOT NULL DEFAULT 0,
+    cron_until TIMESTAMP(6) NULL,
+    cron_repeat INT,
+    cron_run_count INT NOT NULL DEFAULT 0,
 
-    fire_at TIMESTAMP(6) NOT NULL,
-    effective_fire_at TIMESTAMP(6) NULL,
+    run_at TIMESTAMP(6) NOT NULL,
+    effective_run_at TIMESTAMP(6) NULL,
     arrived_at TIMESTAMP(6) NOT NULL,
 
     destination_topic VARCHAR(255) NOT NULL,
@@ -41,9 +42,9 @@ CREATE TABLE scheduled_jobs (
     FOREIGN KEY (predecessor_id) REFERENCES scheduled_jobs(id)
 );
 
--- Index for polling pending jobs by fire time
-CREATE INDEX idx_scheduled_jobs_pending_fire
-    ON scheduled_jobs (effective_fire_at);
+-- Index for polling pending jobs by run time
+CREATE INDEX idx_scheduled_jobs_pending_run
+    ON scheduled_jobs (effective_run_at);
 
 -- Index for finding jobs by key (for QUEUE/REPLACE/SKIP logic)
 CREATE INDEX idx_scheduled_jobs_key_state
