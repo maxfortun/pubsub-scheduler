@@ -18,7 +18,7 @@ public class MySqlJobDao extends AbstractJobDao {
     private static final Logger LOG = Logger.getLogger(MySqlJobDao.class);
 
     @Inject
-    DataSource dataSource;
+    DataSourceProvider dataSourceProvider;
 
     @Override
     protected Logger getLogger() {
@@ -27,7 +27,7 @@ public class MySqlJobDao extends AbstractJobDao {
 
     @Override
     protected DataSource getDataSource() {
-        return dataSource;
+        return dataSourceProvider.getMySqlDataSource();
     }
 
     @Override

@@ -13,7 +13,7 @@ public class MySqlInstanceDao extends AbstractInstanceDao {
     private static final Logger LOG = Logger.getLogger(MySqlInstanceDao.class);
 
     @Inject
-    DataSource dataSource;
+    DataSourceProvider dataSourceProvider;
 
     @Override
     protected Logger getLogger() {
@@ -22,7 +22,7 @@ public class MySqlInstanceDao extends AbstractInstanceDao {
 
     @Override
     protected DataSource getDataSource() {
-        return dataSource;
+        return dataSourceProvider.getMySqlDataSource();
     }
 
     @Override
