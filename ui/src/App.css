@@ -661,3 +661,33 @@ tbody tr.selected {
   text-transform: uppercase;
   color: white;
 }
+
+/* Input with clear button */
+.input-with-clear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-with-clear input {
+  flex: 1;
+}
+
+.clear-input-btn {
+  background: #555;
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-input-btn:hover {
+  background: #e74c3c;
+}

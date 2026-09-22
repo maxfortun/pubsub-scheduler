@@ -57,12 +57,16 @@ export function CronTiming({ form, onChange }: CronTimingProps) {
         </div>
         <div className="form-group">
           <label>Until (optional)</label>
-          <input
-            type="datetime-local"
-            value={cronUntilLocal}
-            onChange={e => handleUntilChange(e.target.value)}
-            placeholder="Unlimited"
-          />
+          <div className="input-with-clear">
+            <input
+              type="datetime-local"
+              value={cronUntilLocal}
+              onChange={e => handleUntilChange(e.target.value)}
+            />
+            {form.cronUntil && (
+              <button type="button" className="clear-input-btn" onClick={() => onChange({ cronUntil: undefined })}>×</button>
+            )}
+          </div>
           <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>

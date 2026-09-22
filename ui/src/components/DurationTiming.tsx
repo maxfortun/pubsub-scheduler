@@ -61,12 +61,16 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
         </div>
         <div className="form-group">
           <label>Until (optional)</label>
-          <input
-            type="datetime-local"
-            value={waitUntilLocal}
-            onChange={e => handleEndDateChange(e.target.value)}
-            placeholder="Unlimited"
-          />
+          <div className="input-with-clear">
+            <input
+              type="datetime-local"
+              value={waitUntilLocal}
+              onChange={e => handleEndDateChange(e.target.value)}
+            />
+            {form.waitUntil && (
+              <button type="button" className="clear-input-btn" onClick={() => onChange({ waitUntil: undefined })}>×</button>
+            )}
+          </div>
           <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>
