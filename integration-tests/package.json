@@ -1,0 +1,22 @@
+{
+  "name": "kafka-scheduler-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Kafka Scheduler",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:postgres": "SCHEDULER_FLAVOR=postgres vitest run",
+    "test:mysql": "SCHEDULER_FLAVOR=mysql vitest run",
+    "test:cockroach": "SCHEDULER_FLAVOR=cockroach vitest run",
+    "test:all": "npm run test:postgres && npm run test:mysql && npm run test:cockroach",
+    "test:parallel": "concurrently \"npm:test:postgres\" \"npm:test:mysql\" \"npm:test:cockroach\""
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "vitest": "^1.6.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

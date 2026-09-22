@@ -80,95 +80,22 @@ tasks.withType<Test> {
 }
 
 tasks.test {
-    useJUnitPlatform {
-        excludeTags("docker", "database")
-    }
-}
-
-tasks.register<Test>("integrationTest") {
-    description = "Runs Docker integration tests"
-    group = "verification"
-    useJUnitPlatform {
-        includeTags("docker")
-    }
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-}
-
-tasks.register<Test>("databaseTest") {
-    description = "Runs database-specific tests (requires running DB containers)"
-    group = "verification"
-    useJUnitPlatform {
-        includeTags("database")
-    }
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-    maxHeapSize = "3g"
-    forkEvery = 1
+    useJUnitPlatform()
 }
 
 tasks.register<Exec>("cleanTestDatabases") {
-    description = "Cleans all test databases before running integration tests"
+    description = "Cleans all test databases and Kafka topics"
     group = "verification"
     workingDir = projectDir
     commandLine("bash", "scripts/clean-test-databases.sh")
     isIgnoreExitValue = true
 }
 
-tasks.register<Exec>("stopSchedulerContainers") {
-    description = "Stops scheduler containers that might interfere with tests"
+tasks.register<Exec>("integrationTest") {
+    description = "Runs containerized integration tests (requires ./scripts/start-test-infra.sh first)"
     group = "verification"
-    commandLine("bash", "-c", "docker stop scheduler-postgres scheduler-mysql scheduler-cockroach 2>/dev/null || true")
-    isIgnoreExitValue = true
-}
-
-tasks.register<Test>("postgresTest") {
-    description = "Runs PostgreSQL integration tests"
-    group = "verification"
-    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
-    useJUnitPlatform {
-        includeTags("postgres")
-    }
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-    maxHeapSize = "2g"
-    forkEvery = 1
-    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/postgres"))
-    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/postgres"))
-    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/postgres/binary"))
-}
-
-tasks.register<Test>("mysqlTest") {
-    description = "Runs MySQL integration tests"
-    group = "verification"
-    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
-    useJUnitPlatform {
-        includeTags("mysql")
-    }
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-    maxHeapSize = "2g"
-    forkEvery = 1
-    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/mysql"))
-    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/mysql"))
-    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/mysql/binary"))
-}
-
-tasks.register<Test>("cockroachTest") {
-    description = "Runs CockroachDB integration tests"
-    group = "verification"
-    dependsOn("stopSchedulerContainers", "cleanTestDatabases")
-    useJUnitPlatform {
-        includeTags("cockroachdb")
-    }
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-    maxHeapSize = "2g"
-    forkEvery = 1
-    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/cockroachdb"))
-    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/cockroachdb"))
-    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/cockroachdb/binary"))
-}
-
-tasks.register("parallelDatabaseTest") {
-    description = "Runs all database tests in parallel (use: ./gradlew parallelDatabaseTest --parallel)"
-    group = "verification"
-    dependsOn("postgresTest", "mysqlTest", "cockroachTest")
+    workingDir = projectDir
+    commandLine("bash", "scripts/run-integration-tests.sh")
 }
 
 tasks.withType<JavaCompile> {
