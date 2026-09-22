@@ -60,14 +60,40 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
           <div className="field-hint">1 = once, 0 = infinite</div>
         </div>
         <div className="form-group">
-          <label>Until (optional)</label>
+          <label>Until</label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="datetime-local"
-              value={waitUntilLocal}
-              onChange={e => handleEndDateChange(e.target.value)}
-              style={{ flex: 1 }}
-            />
+            <div style={{ flex: 1, position: 'relative' }}>
+              {!form.waitUntil && (
+                <input
+                  type="text"
+                  value="Unlimited"
+                  readOnly
+                  onClick={(e) => {
+                    const input = e.currentTarget.nextElementSibling as HTMLInputElement;
+                    input?.showPicker?.();
+                    input?.focus();
+                  }}
+                  style={{
+                    width: '100%',
+                    color: '#888',
+                    cursor: 'pointer',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    background: '#16213e'
+                  }}
+                />
+              )}
+              <input
+                type="datetime-local"
+                value={waitUntilLocal}
+                onChange={e => handleEndDateChange(e.target.value)}
+                style={{
+                  width: '100%',
+                  opacity: form.waitUntil ? 1 : 0
+                }}
+              />
+            </div>
             {form.waitUntil && (
               <button
                 type="button"
@@ -86,7 +112,6 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
               </button>
             )}
           </div>
-          <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>
     </div>

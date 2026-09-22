@@ -56,14 +56,40 @@ export function CronTiming({ form, onChange }: CronTimingProps) {
           <div className="field-hint">Empty = unlimited</div>
         </div>
         <div className="form-group">
-          <label>Until (optional)</label>
+          <label>Until</label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="datetime-local"
-              value={cronUntilLocal}
-              onChange={e => handleUntilChange(e.target.value)}
-              style={{ flex: 1 }}
-            />
+            <div style={{ flex: 1, position: 'relative' }}>
+              {!form.cronUntil && (
+                <input
+                  type="text"
+                  value="Unlimited"
+                  readOnly
+                  onClick={(e) => {
+                    const input = e.currentTarget.nextElementSibling as HTMLInputElement;
+                    input?.showPicker?.();
+                    input?.focus();
+                  }}
+                  style={{
+                    width: '100%',
+                    color: '#888',
+                    cursor: 'pointer',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    background: '#16213e'
+                  }}
+                />
+              )}
+              <input
+                type="datetime-local"
+                value={cronUntilLocal}
+                onChange={e => handleUntilChange(e.target.value)}
+                style={{
+                  width: '100%',
+                  opacity: form.cronUntil ? 1 : 0
+                }}
+              />
+            </div>
             {form.cronUntil && (
               <button
                 type="button"
@@ -82,7 +108,6 @@ export function CronTiming({ form, onChange }: CronTimingProps) {
               </button>
             )}
           </div>
-          <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>
     </div>
