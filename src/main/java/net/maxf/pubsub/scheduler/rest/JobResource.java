@@ -71,12 +71,14 @@ public class JobResource {
     })
     public PagedResult<ScheduledJob> listJobs(
             @Parameter(
-                description = "Filter by job state",
+                description = "Filter by job state(s) - can be specified multiple times",
                 schema = @Schema(enumeration = {"PENDING", "WAITING", "ACQUIRED", "RUNNING", "DONE", "FAILED"})
             )
-            @QueryParam("state") JobState state,
+            @QueryParam("state") List<JobState> states,
             @Parameter(description = "Filter by job key (exact match)")
             @QueryParam("key") String jobKey,
+            @Parameter(description = "Filter by destination topic (exact match)")
+            @QueryParam("destination") String destination,
             @Parameter(
                 description = "Number of results to skip (0-indexed). Negative values are clamped to 0.",
                 schema = @Schema(minimum = "0", defaultValue = "0")
@@ -93,7 +95,8 @@ public class JobResource {
         if (sanitizedKey != null && sanitizedKey.length() > MAX_JOB_KEY_LENGTH) {
             sanitizedKey = sanitizedKey.substring(0, MAX_JOB_KEY_LENGTH);
         }
-        return jobStore.findJobsPaged(state, sanitizedKey, effectiveOffset, effectiveLimit);
+        String sanitizedDest = destination != null ? destination.trim() : null;
+        return jobStore.findJobsPaged(states, sanitizedKey, sanitizedDest, effectiveOffset, effectiveLimit);
     }
 
     @GET

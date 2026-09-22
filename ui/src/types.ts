@@ -51,7 +51,9 @@ export interface PagedResult<T> {
 
 export interface JobFilters {
   state?: JobState;
+  states?: JobState[];
   key?: string;
+  destination?: string;
   offset: number;
   limit: number;
 }

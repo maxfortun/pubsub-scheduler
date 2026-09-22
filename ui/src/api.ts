@@ -4,8 +4,13 @@ const API_BASE = '/api';
 
 export async function fetchJobs(filters: JobFilters): Promise<PagedResult<ScheduledJob>> {
   const params = new URLSearchParams();
-  if (filters.state) params.set('state', filters.state);
+  if (filters.states && filters.states.length > 0) {
+    filters.states.forEach(s => params.append('state', s));
+  } else if (filters.state) {
+    params.set('state', filters.state);
+  }
   if (filters.key) params.set('key', filters.key);
+  if (filters.destination) params.set('destination', filters.destination);
   params.set('offset', filters.offset.toString());
   params.set('limit', filters.limit.toString());
 

@@ -42,8 +42,14 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+      const apiFilters = {
+        ...filters,
+        states: columnFilters.states,
+        key: columnFilters.key || undefined,
+        destination: columnFilters.destination || undefined,
+      };
       const [jobsResult, statsResult] = await Promise.all([
-        fetchJobs(filters),
+        fetchJobs(apiFilters),
         fetchStats(),
       ]);
       setJobs(jobsResult.items);
@@ -54,7 +60,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, columnFilters]);
 
   useEffect(() => {
     loadData();
@@ -82,9 +88,7 @@ function App() {
 
   const handleColumnFilter = (column: string, value: string) => {
     setColumnFilters(f => ({ ...f, [column]: value }));
-    if (column === 'key') {
-      setFilters(f => ({ ...f, key: value || undefined, offset: 0 }));
-    }
+    setFilters(f => ({ ...f, offset: 0 }));
     setActiveFilter(null);
   };
 
@@ -95,6 +99,7 @@ function App() {
         : [...f.states, state];
       return { ...f, states: newStates };
     });
+    setFilters(f => ({ ...f, offset: 0 }));
   };
 
   const clearColumnFilter = (column: string) => {
@@ -103,9 +108,7 @@ function App() {
     } else {
       setColumnFilters(f => ({ ...f, [column]: '' }));
     }
-    if (column === 'key') {
-      setFilters(f => ({ ...f, key: undefined, offset: 0 }));
-    }
+    setFilters(f => ({ ...f, offset: 0 }));
   };
 
   const getUniqueDestinations = () => {
@@ -113,15 +116,7 @@ function App() {
     return Array.from(destinations).sort();
   };
 
-  const filteredJobs = jobs.filter(job => {
-    if (columnFilters.states.length > 0 && !columnFilters.states.includes(job.state)) {
-      return false;
-    }
-    if (columnFilters.destination && job.destinationTopic !== columnFilters.destination) {
-      return false;
-    }
-    return true;
-  });
+  const filteredJobs = jobs;
 
   const handlePageChange = (newOffset: number) => {
     setFilters(f => ({ ...f, offset: Math.max(0, newOffset) }));

@@ -287,6 +287,77 @@ public class CockroachDbJobDao implements JobDao {
     }
 
     @Override
+    public List<ScheduledJob> findJobsPaged(List<JobState> states, String jobKey, String destination, int offset, int limit) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM scheduled_jobs WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        if (states != null && !states.isEmpty()) {
+            sql.append(" AND state IN (");
+            for (int i = 0; i < states.size(); i++) {
+                sql.append(i > 0 ? ",?" : "?");
+                params.add(states.get(i).name());
+            }
+            sql.append(")");
+        }
+        if (jobKey != null) {
+            sql.append(" AND job_key = ?");
+            params.add(jobKey);
+        }
+        if (destination != null) {
+            sql.append(" AND destination_topic = ?");
+            params.add(destination);
+        }
+        sql.append(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        return queryJobs(sql.toString(), ps -> {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+        });
+    }
+
+    @Override
+    public long countJobs(List<JobState> states, String jobKey, String destination) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM scheduled_jobs WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        if (states != null && !states.isEmpty()) {
+            sql.append(" AND state IN (");
+            for (int i = 0; i < states.size(); i++) {
+                sql.append(i > 0 ? ",?" : "?");
+                params.add(states.get(i).name());
+            }
+            sql.append(")");
+        }
+        if (jobKey != null) {
+            sql.append(" AND job_key = ?");
+            params.add(jobKey);
+        }
+        if (destination != null) {
+            sql.append(" AND destination_topic = ?");
+            params.add(destination);
+        }
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOG.errorf(e, "Failed to count jobs");
+            throw new DaoException("Failed to count jobs", e);
+        }
+        return 0;
+    }
+
+    @Override
     public long countJobs(JobState state, String jobKey) {
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM scheduled_jobs WHERE 1=1");
         List<Object> params = new ArrayList<>();

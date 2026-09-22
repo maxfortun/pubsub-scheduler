@@ -298,11 +298,11 @@ public class JobStoreService {
     }
 
     public net.maxf.pubsub.scheduler.rest.JobResource.PagedResult<ScheduledJob> findJobsPaged(
-            JobState state, String jobKey, int offset, int limit) {
-        LOG.debugf("Finding jobs paged: state=%s, key=%s, offset=%d, limit=%d", state, jobKey, offset, limit);
+            List<JobState> states, String jobKey, String destination, int offset, int limit) {
+        LOG.debugf("Finding jobs paged: states=%s, key=%s, dest=%s, offset=%d, limit=%d", states, jobKey, destination, offset, limit);
         try {
-            List<ScheduledJob> items = jobDao.findJobsPaged(state, jobKey, offset, limit);
-            long total = jobDao.countJobs(state, jobKey);
+            List<ScheduledJob> items = jobDao.findJobsPaged(states, jobKey, destination, offset, limit);
+            long total = jobDao.countJobs(states, jobKey, destination);
             return net.maxf.pubsub.scheduler.rest.JobResource.PagedResult.of(items, offset, limit, total);
         } catch (DaoException e) {
             LOG.errorf(e, "Failed to find jobs paged");
