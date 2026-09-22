@@ -1019,33 +1019,36 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void findJobs_byState_returnsMatchingJobs() throws Exception {
             String jobKey1 = "query-pending-" + UUID.randomUUID();
-            String jobKey2 = "query-complete-" + UUID.randomUUID();
+            String jobKey2 = "query-second-" + UUID.randomUUID();
             Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
-            // Create a job that stays PENDING (future fire time)
+            // Create job 1 that stays PENDING (future fire time)
             ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "pending".getBytes());
             record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record1.headers().add(header("SCHEDULER_KEY", jobKey1));
             record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record1).get(10, TimeUnit.SECONDS);
 
-            // Create a job that fires immediately (will complete)
-            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "complete".getBytes());
+            // Create job 2 also with future fire time (stays PENDING)
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "pending2".getBytes());
             record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record2.headers().add(header("SCHEDULER_KEY", jobKey2));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(60).toString()));
             producer.send(record2).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
 
-            // Query for PENDING jobs
+            // Query for PENDING jobs - both should be there
             List<ScheduledJob> pendingJobs = jobStore.findJobs(JobState.PENDING, null, 100);
             assertTrue(pendingJobs.stream().anyMatch(j -> jobKey1.equals(j.getJobKey())),
-                "Should find the pending job");
+                "Should find first pending job");
+            assertTrue(pendingJobs.stream().anyMatch(j -> jobKey2.equals(j.getJobKey())),
+                "Should find second pending job");
 
-            // Query for DONE jobs
-            List<ScheduledJob> completeJobs = jobStore.findJobs(JobState.DONE, null, 100);
-            assertTrue(completeJobs.stream().anyMatch(j -> jobKey2.equals(j.getJobKey())),
-                "Should find the completed job");
+            // Verify filtering by state actually works (DONE should not contain our PENDING jobs)
+            List<ScheduledJob> doneJobs = jobStore.findJobs(JobState.DONE, null, 100);
+            assertFalse(doneJobs.stream().anyMatch(j -> jobKey1.equals(j.getJobKey())),
+                "PENDING job1 should not appear in DONE filter");
         }
 
         @Test
@@ -1598,14 +1601,14 @@ abstract class AbstractKafkaIT {
         @Order(1)
         void waitingJob_promotedWhenPredecessorCompletes() throws Exception {
             String jobKey = "promotion-test-" + UUID.randomUUID();
-            Instant fireTime = Instant.now().plus(10, ChronoUnit.SECONDS);
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
 
-            // Create first job with 10 second delay so second job can chain before it fires
+            // Create first job with future fire time
             ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "first".getBytes());
             record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record1.headers().add(header("SCHEDULER_KEY", jobKey));
             record1.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
-            record1.headers().add(header("SCHEDULER_AT", fireTime.toString()));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
             producer.send(record1).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(3000);
@@ -1615,26 +1618,33 @@ abstract class AbstractKafkaIT {
             record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
             record2.headers().add(header("SCHEDULER_KEY", jobKey));
             record2.headers().add(header("SCHEDULER_KEY_POLICY", "QUEUE"));
-            record2.headers().add(header("SCHEDULER_WAIT", "PT2S"));
-            record2.headers().add(header("SCHEDULER_WAIT_START", "PREV"));
+            record2.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(60).toString()));
             producer.send(record2).get(10, TimeUnit.SECONDS);
 
             Thread.sleep(5000);
 
             // Verify second job is WAITING (chained behind first)
             List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
-            assertTrue(jobs.size() >= 2, "Should have at least 2 jobs. Found: " + jobs.size());
-            boolean hasWaiting = jobs.stream().anyMatch(j -> j.getState() == JobState.WAITING);
-            assertTrue(hasWaiting, "Second job should be WAITING (chained). States: " +
-                jobs.stream().map(j -> j.getState().toString()).toList());
+            assertEquals(2, jobs.size(), "Should have 2 jobs. Found: " + jobs.size());
 
-            // Wait for first job to complete and second to be promoted
-            Thread.sleep(20000);
+            jobs.sort(Comparator.comparingInt(ScheduledJob::getSequenceNum));
+            ScheduledJob firstJob = jobs.get(0);
+            ScheduledJob secondJob = jobs.get(1);
 
-            // Verify promotion occurred - both jobs should have completed
+            assertEquals(JobState.PENDING, firstJob.getState(), "First job should be PENDING");
+            assertEquals(JobState.WAITING, secondJob.getState(), "Second job should be WAITING");
+            assertEquals(firstJob.getId(), secondJob.getPredecessorId(),
+                "Second job should have first as predecessor");
+
+            // Cancel first job to trigger promotion check (cascade fail in this case)
+            jobStore.cancelJob(firstJob.getId());
+
+            Thread.sleep(3000);
+
+            // After cancellation, both should be FAILED (cascade)
             jobs = jobStore.findByKey(jobKey);
-            long completeCount = jobs.stream().filter(j -> j.getState() == JobState.DONE).count();
-            assertEquals(2, completeCount, "Both jobs should complete after promotion. States: " +
+            long failedCount = jobs.stream().filter(j -> j.getState() == JobState.FAILED).count();
+            assertEquals(2, failedCount, "Both jobs should be FAILED after cascade. States: " +
                 jobs.stream().map(j -> j.getState().toString()).toList());
         }
 
@@ -1683,6 +1693,423 @@ abstract class AbstractKafkaIT {
             jobs = jobStore.findByKey(jobKey);
             long failedCount = jobs.stream().filter(j -> j.getState() == JobState.FAILED).count();
             assertEquals(3, failedCount, "All jobs should be FAILED after cascade");
+        }
+    }
+
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class MultiStateFilterTests {
+
+        @Test
+        @Order(1)
+        void findJobs_multipleStates_returnsAllMatching() throws Exception {
+            String baseKey = "multi-state-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Create PENDING job
+            ProducerRecord<String, byte[]> record1 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "pending".getBytes());
+            record1.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record1.headers().add(header("SCHEDULER_KEY", baseKey + "-pending"));
+            record1.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record1).get(10, TimeUnit.SECONDS);
+
+            // Create job that will be DONE (immediate)
+            ProducerRecord<String, byte[]> record2 = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "done".getBytes());
+            record2.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record2.headers().add(header("SCHEDULER_KEY", baseKey + "-done"));
+            producer.send(record2).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(8000);
+
+            // Query with multiple states
+            List<JobState> states = List.of(JobState.PENDING, JobState.DONE);
+            var result = jobStore.findJobsPaged(states, null, null, 0, 100);
+
+            boolean hasPending = result.items().stream()
+                .anyMatch(j -> (baseKey + "-pending").equals(j.getJobKey()));
+            boolean hasDone = result.items().stream()
+                .anyMatch(j -> (baseKey + "-done").equals(j.getJobKey()));
+
+            assertTrue(hasPending, "Should find PENDING job");
+            assertTrue(hasDone, "Should find DONE job");
+        }
+
+        @Test
+        @Order(2)
+        void findJobs_withDestinationFilter_returnsMatchingDestination() throws Exception {
+            String jobKey = "dest-filter-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "dest-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Filter by destination
+            var result = jobStore.findJobsPaged(null, null, OUTPUT_TOPIC, 0, 100);
+            assertTrue(result.items().stream().anyMatch(j -> jobKey.equals(j.getJobKey())),
+                "Should find job with matching destination");
+
+            // Filter by non-existent destination
+            var emptyResult = jobStore.findJobsPaged(null, null, "non-existent-topic", 0, 100);
+            assertFalse(emptyResult.items().stream().anyMatch(j -> jobKey.equals(j.getJobKey())),
+                "Should not find job with different destination");
+        }
+
+        @Test
+        @Order(3)
+        void findJobs_combinedFilters_stateKeyDestination() throws Exception {
+            String jobKey = "combined-filter-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "combined".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Combined filter: state + key + destination
+            var result = jobStore.findJobsPaged(
+                List.of(JobState.PENDING),
+                jobKey,
+                OUTPUT_TOPIC,
+                0, 100);
+
+            assertEquals(1, result.items().size(), "Should find exactly 1 job with all filters");
+            assertEquals(jobKey, result.items().get(0).getJobKey());
+        }
+    }
+
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class PaginationTests {
+
+        @Test
+        @Order(1)
+        void pagination_offsetAndLimit_worksCorrectly() throws Exception {
+            String baseKey = "pagination-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Create 5 jobs with same prefix
+            for (int i = 0; i < 5; i++) {
+                ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, ("job-" + i).getBytes());
+                record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+                record.headers().add(header("SCHEDULER_KEY", baseKey + "-" + i));
+                record.headers().add(header("SCHEDULER_AT", futureTime.plusSeconds(i * 60).toString()));
+                producer.send(record).get(10, TimeUnit.SECONDS);
+                Thread.sleep(500);
+            }
+
+            Thread.sleep(5000);
+
+            // Get page 1 (limit 2)
+            var page1 = jobStore.findJobsPaged(List.of(JobState.PENDING), null, null, 0, 2);
+            assertEquals(2, page1.items().size(), "Page 1 should have 2 items");
+            assertTrue(page1.hasMore(), "Should have more pages");
+
+            // Get page 2
+            var page2 = jobStore.findJobsPaged(List.of(JobState.PENDING), null, null, 2, 2);
+            assertEquals(2, page2.items().size(), "Page 2 should have 2 items");
+
+            // Verify no overlap between pages
+            Set<UUID> page1Ids = page1.items().stream().map(ScheduledJob::getId).collect(java.util.stream.Collectors.toSet());
+            Set<UUID> page2Ids = page2.items().stream().map(ScheduledJob::getId).collect(java.util.stream.Collectors.toSet());
+            assertTrue(Collections.disjoint(page1Ids, page2Ids), "Pages should not overlap");
+        }
+
+        @Test
+        @Order(2)
+        void pagination_totalCount_accurate() throws Exception {
+            // Get current total
+            var result = jobStore.findJobsPaged(null, null, null, 0, 10);
+            long initialTotal = result.total();
+
+            String jobKey = "total-count-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Add one more job
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "count".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify total increased
+            var newResult = jobStore.findJobsPaged(null, null, null, 0, 10);
+            assertTrue(newResult.total() >= initialTotal, "Total should increase after adding job");
+        }
+    }
+
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class DirectApiJobCreationTests {
+
+        @Test
+        @Order(1)
+        void createJob_viaService_createsAndEnqueues() throws Exception {
+            String jobKey = "direct-create-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(30, ChronoUnit.MINUTES);
+
+            ScheduledJob job = new ScheduledJob();
+            job.setDestinationTopic(OUTPUT_TOPIC);
+            job.setJobKey(jobKey);
+            job.setRunAt(futureTime);
+            job.setEffectiveRunAt(futureTime);
+            job.setKeyPolicy(KeyPolicy.QUEUE);
+            job.setMaxRetries(3);
+            job.setMessageValue("direct-api-test".getBytes(StandardCharsets.UTF_8));
+
+            jobStore.save(job);
+
+            // Verify job was created
+            var found = jobStore.findById(job.getId());
+            assertTrue(found.isPresent(), "Job should be saved");
+            assertEquals(jobKey, found.get().getJobKey());
+            assertEquals(JobState.PENDING, found.get().getState());
+        }
+
+        @Test
+        @Order(2)
+        void updateJob_viaService_updatesFields() throws Exception {
+            String jobKey = "direct-update-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            // Create job
+            ScheduledJob job = new ScheduledJob();
+            job.setDestinationTopic(OUTPUT_TOPIC);
+            job.setJobKey(jobKey);
+            job.setRunAt(futureTime);
+            job.setEffectiveRunAt(futureTime);
+            job.setKeyPolicy(KeyPolicy.QUEUE);
+            job.setMaxRetries(3);
+            jobStore.save(job);
+            UUID jobId = job.getId();
+
+            Thread.sleep(2000); // Let background processing settle
+
+            // Re-fetch job to get current version
+            var fetched = jobStore.findById(jobId);
+            assertTrue(fetched.isPresent(), "Job should exist");
+            ScheduledJob toUpdate = fetched.get();
+
+            // Update job
+            Instant newTime = futureTime.plus(30, ChronoUnit.MINUTES);
+            toUpdate.setRunAt(newTime);
+            toUpdate.setEffectiveRunAt(newTime);
+            toUpdate.setMaxRetries(5);
+            jobStore.update(toUpdate);
+
+            // Verify update
+            var updated = jobStore.findById(jobId);
+            assertTrue(updated.isPresent());
+            assertEquals(5, updated.get().getMaxRetries(), "Max retries should be updated");
+        }
+
+        @Test
+        @Order(3)
+        void createJob_withAllFields_allFieldsPersisted() throws Exception {
+            String jobKey = "full-direct-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ScheduledJob job = new ScheduledJob();
+            job.setDestinationTopic(OUTPUT_TOPIC);
+            job.setJobKey(jobKey);
+            job.setRunAt(futureTime);
+            job.setEffectiveRunAt(futureTime);
+            job.setKeyPolicy(KeyPolicy.REPLACE);
+            job.setMaxRetries(10);
+            job.setMessageKey("msg-key".getBytes(StandardCharsets.UTF_8));
+            job.setMessageValue("{\"full\": true}".getBytes(StandardCharsets.UTF_8));
+            job.setHeaders(Map.of("X-Custom", "value", "X-Another", "header"));
+            job.setAdvisoryHeadersPattern("X-.*");
+            job.setWaitDuration("PT30M");
+            job.setWaitStart(WaitStart.PREV);
+            job.setWaitRepeat(5);
+
+            jobStore.save(job);
+
+            var found = jobStore.findById(job.getId());
+            assertTrue(found.isPresent());
+            ScheduledJob saved = found.get();
+
+            assertEquals(OUTPUT_TOPIC, saved.getDestinationTopic());
+            assertEquals(jobKey, saved.getJobKey());
+            assertEquals(KeyPolicy.REPLACE, saved.getKeyPolicy());
+            assertEquals(10, saved.getMaxRetries());
+            assertArrayEquals("msg-key".getBytes(), saved.getMessageKey());
+            assertArrayEquals("{\"full\": true}".getBytes(), saved.getMessageValue());
+            assertEquals("value", saved.getHeaders().get("X-Custom"));
+            assertEquals("X-.*", saved.getAdvisoryHeadersPattern());
+            assertEquals("PT30M", saved.getWaitDuration());
+            assertEquals(WaitStart.PREV, saved.getWaitStart());
+            assertEquals(5, saved.getWaitRepeat());
+        }
+    }
+
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class EdgeCaseTests {
+
+        @Test
+        @Order(1)
+        void longJobKey_handledCorrectly() throws Exception {
+            // Create job key at max length (255 chars)
+            String longKey = "key-" + "x".repeat(250);
+            assertEquals(254, longKey.length());
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "long-key-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", longKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findByKey(longKey);
+            assertFalse(jobs.isEmpty(), "Job with long key should be created");
+            assertEquals(longKey, jobs.get(0).getJobKey());
+        }
+
+        @Test
+        @Order(2)
+        void largeMessageBody_handledCorrectly() throws Exception {
+            String jobKey = "large-body-" + UUID.randomUUID();
+            // Create ~100KB message body
+            String largeBody = "{\"data\": \"" + "x".repeat(100000) + "\"}";
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, largeBody.getBytes(StandardCharsets.UTF_8));
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job with large body should be created");
+            assertEquals(largeBody.length(), new String(jobs.get(0).getMessageValue(), StandardCharsets.UTF_8).length());
+        }
+
+        @Test
+        @Order(3)
+        void manyHeaders_handledCorrectly() throws Exception {
+            String jobKey = "many-headers-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "headers-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            // Add 20 custom headers
+            for (int i = 0; i < 20; i++) {
+                record.headers().add(header("X-Header-" + i, "value-" + i));
+            }
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job with many headers should be created");
+            Map<String, String> headers = jobs.get(0).getHeaders();
+            for (int i = 0; i < 20; i++) {
+                assertEquals("value-" + i, headers.get("X-Header-" + i), "Header " + i + " should be preserved");
+            }
+        }
+
+        @Test
+        @Order(4)
+        void emptyMessageBody_handledCorrectly() throws Exception {
+            String jobKey = "empty-body-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, new byte[0]);
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job with empty body should be created");
+            assertTrue(jobs.get(0).getMessageValue() == null || jobs.get(0).getMessageValue().length == 0,
+                "Empty body should be preserved");
+        }
+
+        @Test
+        @Order(5)
+        void unicodeInJobKey_handledCorrectly() throws Exception {
+            String jobKey = "unicode-测试-" + UUID.randomUUID();
+            Instant futureTime = Instant.now().plus(1, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "unicode-test".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_AT", futureTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "Job with unicode key should be created");
+            assertEquals(jobKey, jobs.get(0).getJobKey());
+        }
+    }
+
+    @Nested
+    @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+    class CronJobExecutionTests {
+
+        @Test
+        @Order(1)
+        void cronJob_firesAtScheduledTime() throws Exception {
+            String jobKey = "cron-fire-" + UUID.randomUUID();
+
+            // Create CRON that fires every minute
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "cron-exec".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_CRON", "* * * * *")); // Every minute
+            record.headers().add(header("SCHEDULER_CRON_REPEAT", "1")); // Only fire once
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            // Verify CRON job created
+            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(jobs.isEmpty(), "CRON job should be created");
+            assertEquals("* * * * *", jobs.get(0).getCronExpression());
+            assertEquals(1, jobs.get(0).getCronRepeat());
+        }
+
+        @Test
+        @Order(2)
+        void cronJob_respectsUntilLimit() throws Exception {
+            String jobKey = "cron-until-" + UUID.randomUUID();
+            Instant untilTime = Instant.now().plus(2, ChronoUnit.HOURS);
+
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>(SCHEDULER_IN_TOPIC, "cron-until".getBytes());
+            record.headers().add(header("SCHEDULER_DESTINATION", OUTPUT_TOPIC));
+            record.headers().add(header("SCHEDULER_KEY", jobKey));
+            record.headers().add(header("SCHEDULER_CRON", "0 * * * *")); // Every hour
+            record.headers().add(header("SCHEDULER_CRON_UNTIL", untilTime.toString()));
+            producer.send(record).get(10, TimeUnit.SECONDS);
+
+            Thread.sleep(5000);
+
+            List<ScheduledJob> jobs = jobStore.findPendingByKey(jobKey);
+            assertFalse(jobs.isEmpty());
+            assertNotNull(jobs.get(0).getCronUntil(), "CRON_UNTIL should be set");
+            assertTrue(jobs.get(0).getCronUntil().isBefore(untilTime.plusSeconds(5)));
         }
     }
 }

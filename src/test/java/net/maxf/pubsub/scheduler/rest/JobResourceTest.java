@@ -35,7 +35,7 @@ class JobResourceTest {
     void listJobs_returnsJobList() {
         ScheduledJob job1 = createJob("key-1");
         ScheduledJob job2 = createJob("key-2");
-        when(jobStore.findJobsPaged(null, null, 0, 100))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(100)))
             .thenReturn(JobResource.PagedResult.of(List.of(job1, job2), 0, 100, 2));
 
         given()
@@ -56,7 +56,7 @@ class JobResourceTest {
     void listJobs_withStateFilter_filtersJobs() {
         ScheduledJob job = createJob("key-1");
         job.setState(JobState.PENDING);
-        when(jobStore.findJobsPaged(JobState.PENDING, null, 0, 100))
+        when(jobStore.findJobsPaged(eq(List.of(JobState.PENDING)), isNull(), isNull(), eq(0), eq(100)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 0, 100, 1));
 
         given()
@@ -71,7 +71,7 @@ class JobResourceTest {
     @Test
     void listJobs_withKeyFilter_filtersJobs() {
         ScheduledJob job = createJob("specific-key");
-        when(jobStore.findJobsPaged(null, "specific-key", 0, 100))
+        when(jobStore.findJobsPaged(anyList(), eq("specific-key"), isNull(), eq(0), eq(100)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 0, 100, 1));
 
         given()
@@ -86,7 +86,7 @@ class JobResourceTest {
     @Test
     void listJobs_withLimit_limitsResults() {
         ScheduledJob job = createJob("key-1");
-        when(jobStore.findJobsPaged(null, null, 0, 10))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(10)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 0, 10, 1));
 
         given()
@@ -100,7 +100,7 @@ class JobResourceTest {
     @Test
     void listJobs_withOffsetAndLimit_paginates() {
         ScheduledJob job = createJob("key-3");
-        when(jobStore.findJobsPaged(null, null, 20, 10))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(20), eq(10)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 20, 10, 50));
 
         given()
@@ -118,7 +118,7 @@ class JobResourceTest {
 
     @Test
     void listJobs_negativeOffset_clampsToZero() {
-        when(jobStore.findJobsPaged(null, null, 0, 100))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(100)))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 100, 0));
 
         given()
@@ -131,7 +131,7 @@ class JobResourceTest {
 
     @Test
     void listJobs_zeroLimit_clampsToOne() {
-        when(jobStore.findJobsPaged(null, null, 0, 1))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(1)))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 1, 0));
 
         given()
@@ -144,7 +144,7 @@ class JobResourceTest {
 
     @Test
     void listJobs_negativeLimit_clampsToOne() {
-        when(jobStore.findJobsPaged(null, null, 0, 1))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(1)))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 1, 0));
 
         given()
@@ -157,7 +157,7 @@ class JobResourceTest {
 
     @Test
     void listJobs_limitExceedsMax_cappedToMax() {
-        when(jobStore.findJobsPaged(null, null, 0, 1000))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(0), eq(1000)))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 1000, 0));
 
         given()
@@ -170,7 +170,7 @@ class JobResourceTest {
 
     @Test
     void listJobs_emptyResults_returnsEmptyPage() {
-        when(jobStore.findJobsPaged(JobState.DONE, null, 0, 100))
+        when(jobStore.findJobsPaged(eq(List.of(JobState.DONE)), isNull(), isNull(), eq(0), eq(100)))
             .thenReturn(JobResource.PagedResult.of(List.of(), 0, 100, 0));
 
         given()
@@ -186,7 +186,7 @@ class JobResourceTest {
     @Test
     void listJobs_lastPage_hasMoreFalse() {
         ScheduledJob job = createJob("last-job");
-        when(jobStore.findJobsPaged(null, null, 90, 10))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(90), eq(10)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 90, 10, 91));
 
         given()
@@ -205,7 +205,7 @@ class JobResourceTest {
     void listJobs_exactBoundary_hasMoreFalse() {
         ScheduledJob job1 = createJob("job-1");
         ScheduledJob job2 = createJob("job-2");
-        when(jobStore.findJobsPaged(null, null, 8, 2))
+        when(jobStore.findJobsPaged(anyList(), isNull(), isNull(), eq(8), eq(2)))
             .thenReturn(JobResource.PagedResult.of(List.of(job1, job2), 8, 2, 10));
 
         given()
@@ -223,7 +223,7 @@ class JobResourceTest {
     void listJobs_combinedFiltersWithPagination() {
         ScheduledJob job = createJob("order-123");
         job.setState(JobState.PENDING);
-        when(jobStore.findJobsPaged(JobState.PENDING, "order-123", 5, 25))
+        when(jobStore.findJobsPaged(eq(List.of(JobState.PENDING)), eq("order-123"), isNull(), eq(5), eq(25)))
             .thenReturn(JobResource.PagedResult.of(List.of(job), 5, 25, 15));
 
         given()
