@@ -1,11 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { getConfig } from './config.js';
-import {
-  sendMessage,
-  sendScheduledMessage,
-  pollDlqForMessage,
-  disconnectProducer,
-} from './kafka.js';
+import { createMessagingClient } from './messaging/index.js';
 import {
   getHealth,
   getConfig as getSchedulerConfig,
@@ -21,6 +16,7 @@ import {
 } from './http.js';
 
 const config = getConfig();
+const messagingClient = createMessagingClient(config);
 
 describe(`${config.name} Scheduler Integration Tests`, () => {
   beforeAll(async () => {
@@ -29,7 +25,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   });
 
   afterAll(async () => {
-    await disconnectProducer();
+    await messagingClient.disconnect();
   });
 
   // ========== Health & Config ==========
@@ -49,7 +45,6 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('instances endpoint is accessible', async () => {
       const instances = await getInstances();
       expect(Array.isArray(instances)).toBe(true);
-      // Instance registration may take time, so we just verify the endpoint works
     });
 
     test('stats endpoint returns job counts', async () => {
@@ -64,26 +59,26 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Destination Headers', () => {
     test('missing destination sends to DLQ', async () => {
       const correlationId = `dlq-missing-dest-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {});
-      await sleep(2000); // Give scheduler time to process
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {});
+      await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
       expect(dlqRecord.headers.SCHEDULER_ERROR).toContain('SCHEDULER_DESTINATION');
     });
 
     test('blank destination sends to DLQ', async () => {
       const correlationId = `dlq-blank-dest-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, { SCHEDULER_DESTINATION: '   ' });
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, { SCHEDULER_DESTINATION: '   ' });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
 
     test('valid destination creates job', async () => {
       const jobKey = `dest-test-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -97,7 +92,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('SCHEDULER_AT sets absolute fire time', async () => {
       const jobKey = `at-test-${uuid()}`;
       const runAt = futureTime();
-      await sendScheduledMessage(jobKey, { runAt });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -108,7 +103,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('SCHEDULER_WAIT sets relative fire time', async () => {
       const jobKey = `wait-test-${uuid()}`;
-      await sendScheduledMessage(jobKey, { wait: 'PT30M' });
+      await messagingClient.sendScheduledMessage(jobKey, { wait: 'PT30M' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -118,7 +113,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('no timing header schedules immediately', async () => {
       const jobKey = `immediate-test-${uuid()}`;
-      await sendScheduledMessage(jobKey, {});
+      await messagingClient.sendScheduledMessage(jobKey, {});
       await sleep(5000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -127,21 +122,21 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('multiple timing headers sends to DLQ', async () => {
       const correlationId = `dlq-multi-timing-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_AT: futureTime().toISOString(),
         SCHEDULER_WAIT: 'PT1H',
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
       expect(dlqRecord.headers.SCHEDULER_ERROR).toContain('mutually exclusive');
     });
 
     test('SCHEDULER_CRON creates cron job', async () => {
       const jobKey = `cron-test-${uuid()}`;
-      await sendScheduledMessage(jobKey, { cron: '* * * * *' });
+      await messagingClient.sendScheduledMessage(jobKey, { cron: '* * * * *' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -154,7 +149,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Cron Options', () => {
     test('CRON_UNTIL and CRON_REPEAT are mutually exclusive', async () => {
       const correlationId = `dlq-cron-exclusive-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_CRON: '0 0 * * *',
         SCHEDULER_CRON_UNTIL: futureTime(24 * 30).toISOString(),
@@ -162,13 +157,13 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
 
     test('CRON_REPEAT sets max count', async () => {
       const jobKey = `cron-repeat-${uuid()}`;
-      await sendScheduledMessage(jobKey, { cron: '0 * * * *', cronRepeat: 10 });
+      await messagingClient.sendScheduledMessage(jobKey, { cron: '0 * * * *', cronRepeat: 10 });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -179,7 +174,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('CRON_UNTIL sets end time', async () => {
       const jobKey = `cron-until-${uuid()}`;
       const endTime = futureTime(24 * 7);
-      await sendScheduledMessage(jobKey, { cron: '0 0 * * *', cronUntil: endTime });
+      await messagingClient.sendScheduledMessage(jobKey, { cron: '0 0 * * *', cronUntil: endTime });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -192,7 +187,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Wait Options', () => {
     test('WAIT_START=SELF sets waitStart to SELF', async () => {
       const jobKey = `wait-start-self-${uuid()}`;
-      await sendScheduledMessage(jobKey, { wait: 'PT1H', waitStart: 'SELF' });
+      await messagingClient.sendScheduledMessage(jobKey, { wait: 'PT1H', waitStart: 'SELF' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -202,7 +197,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('WAIT_START=PREV sets waitStart to PREV', async () => {
       const jobKey = `wait-start-prev-${uuid()}`;
-      await sendScheduledMessage(jobKey, { wait: 'PT1H', waitStart: 'PREV' });
+      await messagingClient.sendScheduledMessage(jobKey, { wait: 'PT1H', waitStart: 'PREV' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -212,7 +207,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('WAIT_REPEAT sets repeat count', async () => {
       const jobKey = `wait-repeat-${uuid()}`;
-      await sendScheduledMessage(jobKey, { wait: 'PT15M', waitRepeat: 5 });
+      await messagingClient.sendScheduledMessage(jobKey, { wait: 'PT15M', waitRepeat: 5 });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -225,7 +220,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Key Policies', () => {
     test('KEY_POLICY=QUEUE sets keyPolicy to QUEUE', async () => {
       const jobKey = `key-policy-queue-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'QUEUE' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'QUEUE' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -235,7 +230,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('KEY_POLICY=REPLACE sets keyPolicy to REPLACE', async () => {
       const jobKey = `key-policy-replace-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'REPLACE' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'REPLACE' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -245,7 +240,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('KEY_POLICY=SKIP sets keyPolicy to SKIP', async () => {
       const jobKey = `key-policy-skip-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'SKIP' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), keyPolicy: 'SKIP' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -255,7 +250,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('no KEY_POLICY defaults to QUEUE', async () => {
       const jobKey = `key-policy-default-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -267,9 +262,9 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const jobKey = `chain-test-${uuid()}`;
       const runAt = futureTime();
 
-      await sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
       await sleep(3000);
-      await sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -283,9 +278,9 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const jobKey = `skip-test-${uuid()}`;
       const runAt = futureTime();
 
-      await sendScheduledMessage(jobKey, { runAt, keyPolicy: 'SKIP', body: 'first' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt, keyPolicy: 'SKIP', body: 'first' });
       await sleep(3000);
-      await sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'SKIP', body: 'second' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'SKIP', body: 'second' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -296,12 +291,12 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const jobKey = `replace-test-${uuid()}`;
       const runAt = futureTime();
 
-      await sendScheduledMessage(jobKey, { runAt, keyPolicy: 'REPLACE', body: 'first' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt, keyPolicy: 'REPLACE', body: 'first' });
       await sleep(3000);
       const firstJobs = await getJobsByKey(jobKey);
       const firstJobId = firstJobs[0].id;
 
-      await sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'REPLACE', body: 'second' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'REPLACE', body: 'second' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -318,7 +313,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Retry Configuration', () => {
     test('RETRY_COUNT sets maxRetries', async () => {
       const jobKey = `retry-count-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), retryCount: 10 });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), retryCount: 10 });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -328,7 +323,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('no RETRY_COUNT uses default (3)', async () => {
       const jobKey = `retry-default-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -341,7 +336,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Advisory Headers', () => {
     test('ADVISORY_HEADERS sets pattern', async () => {
       const jobKey = `advisory-pattern-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), advisoryHeaders: 'X-.*|Custom-.*' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), advisoryHeaders: 'X-.*|Custom-.*' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -355,7 +350,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('message body is preserved', async () => {
       const jobKey = `body-preservation-${uuid()}`;
       const body = '{"order": 123}';
-      await sendScheduledMessage(jobKey, { runAt: futureTime(), body });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime(), body });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -366,7 +361,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('non-scheduler headers are preserved', async () => {
       const jobKey = `header-preservation-${uuid()}`;
-      await sendScheduledMessage(jobKey, {
+      await messagingClient.sendScheduledMessage(jobKey, {
         runAt: futureTime(),
         customHeaders: {
           'X-Correlation-Id': 'corr-123',
@@ -387,50 +382,50 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Invalid Input Handling', () => {
     test('invalid AT format sends to DLQ', async () => {
       const correlationId = `dlq-invalid-at-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_AT: 'not-a-timestamp',
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
 
     test('invalid WAIT format sends to DLQ', async () => {
       const correlationId = `dlq-invalid-wait-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_WAIT: 'not-a-duration',
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
 
     test('invalid WAIT_START sends to DLQ', async () => {
       const correlationId = `dlq-invalid-waitstart-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_WAIT: 'PT1H',
         SCHEDULER_WAIT_START: 'INVALID',
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
 
     test('invalid KEY_POLICY sends to DLQ', async () => {
       const correlationId = `dlq-invalid-policy-${uuid()}`;
-      await sendMessage(config.inTopic, correlationId, {
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
         SCHEDULER_DESTINATION: config.outputTopic,
         SCHEDULER_KEY_POLICY: 'INVALID',
       });
       await sleep(2000);
 
-      const dlqRecord = await pollDlqForMessage(correlationId);
+      const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
     });
   });
@@ -439,7 +434,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Job Lifecycle', () => {
     test('immediate job fires and completes', async () => {
       const jobKey = `immediate-lifecycle-${uuid()}`;
-      await sendScheduledMessage(jobKey, {});
+      await messagingClient.sendScheduledMessage(jobKey, {});
       await sleep(5000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -451,9 +446,9 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const jobKey = `chain-lifecycle-${uuid()}`;
       const runAt = futureTime();
 
-      await sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
       await sleep(2000);
-      await sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -470,7 +465,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Job Cancellation', () => {
     test('cancel pending job sets state to FAILED', async () => {
       const jobKey = `cancel-pending-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -488,9 +483,9 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const jobKey = `cancel-cascade-${uuid()}`;
       const runAt = futureTime();
 
-      await sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt, keyPolicy: 'QUEUE', body: 'first' });
       await sleep(2000);
-      await sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: new Date(runAt.getTime() + 60000), keyPolicy: 'QUEUE', body: 'second' });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -510,7 +505,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
   describe('Job Queries', () => {
     test('query by state returns filtered jobs', async () => {
       const jobKey = `query-state-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const result = await getJobs({ state: 'PENDING', limit: 100 });
@@ -523,7 +518,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const runAt = futureTime();
 
       for (let i = 0; i < 3; i++) {
-        await sendScheduledMessage(jobKey, {
+        await messagingClient.sendScheduledMessage(jobKey, {
           runAt: new Date(runAt.getTime() + i * 60000),
           keyPolicy: 'QUEUE',
           body: `job-${i}`,
@@ -538,7 +533,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('get job by ID returns job', async () => {
       const jobKey = `query-id-${uuid()}`;
-      await sendScheduledMessage(jobKey, { runAt: futureTime() });
+      await messagingClient.sendScheduledMessage(jobKey, { runAt: futureTime() });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
@@ -556,7 +551,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       const runAt = futureTime(2);
       const body = '{"order": 999}';
 
-      await sendScheduledMessage(jobKey, {
+      await messagingClient.sendScheduledMessage(jobKey, {
         runAt,
         keyPolicy: 'REPLACE',
         retryCount: 5,
@@ -580,7 +575,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
     test('wait job with all options', async () => {
       const jobKey = `wait-full-${uuid()}`;
-      await sendScheduledMessage(jobKey, {
+      await messagingClient.sendScheduledMessage(jobKey, {
         wait: 'PT15M',
         waitStart: 'PREV',
         waitRepeat: 10,

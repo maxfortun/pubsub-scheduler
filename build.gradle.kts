@@ -29,6 +29,7 @@ dependencies {
     // Camel messaging (include what you need)
     implementation("org.apache.camel.quarkus:camel-quarkus-kafka")
     implementation("org.apache.camel.quarkus:camel-quarkus-activemq")
+    implementation("org.messaginghub:pooled-jms:3.1.6")
 
     // Database
     implementation("io.quarkus:quarkus-jdbc-postgresql")
