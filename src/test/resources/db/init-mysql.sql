@@ -19,8 +19,8 @@ CREATE TABLE scheduled_jobs (
     arrived_at TIMESTAMP(6) NOT NULL,
 
     destination_topic VARCHAR(255) NOT NULL,
-    message_key BLOB,
-    message_value BLOB,
+    message_key MEDIUMBLOB,
+    message_value MEDIUMBLOB,
     headers JSON,
     advisory_headers_pattern VARCHAR(255),
 

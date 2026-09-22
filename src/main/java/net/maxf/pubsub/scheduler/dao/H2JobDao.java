@@ -32,7 +32,7 @@ public class H2JobDao extends AbstractJobDao {
 
     @Override
     protected String getShardHashExpression() {
-        return "HASH('SHA-256', COALESCE(job_key, CAST(id AS VARCHAR)), 1)";
+        return "ORA_HASH(COALESCE(job_key, CAST(id AS VARCHAR)))";
     }
 
     @Override
