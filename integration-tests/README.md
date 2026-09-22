@@ -1,10 +1,10 @@
 # Kafka Scheduler Integration Tests
 
-Standalone integration tests for the Kafka Scheduler. Tests run against containerized scheduler instances using HTTP and Kafka - no embedded runtime.
+Standalone integration tests for the Kafka Scheduler. Tests run against containerized scheduler instances using HTTP and messaging (Kafka or ActiveMQ) - no embedded runtime.
 
 ## Running Tests (Containerized - Recommended)
 
-Run all 3 database flavors in parallel as containers:
+Run all 4 database/messaging flavors in parallel as containers:
 
 ```bash
 # Start infrastructure first
@@ -28,14 +28,15 @@ For development/debugging, run tests locally:
 # Run tests locally
 cd integration-tests
 npm install
-npm run test:parallel    # All 3 flavors in parallel
+npm run test:parallel    # All 4 flavors in parallel
 ```
 
 ### Single Flavor
 ```bash
-npm run test:postgres    # Test PostgreSQL scheduler
-npm run test:mysql       # Test MySQL scheduler
-npm run test:cockroach   # Test CockroachDB scheduler
+npm run test:postgres    # Test PostgreSQL + Kafka scheduler
+npm run test:mysql       # Test MySQL + Kafka scheduler
+npm run test:cockroach   # Test CockroachDB + Kafka scheduler
+npm run test:activemq    # Test MySQL + ActiveMQ scheduler
 ```
 
 ### Watch Mode
@@ -62,7 +63,7 @@ SCHEDULER_FLAVOR=postgres npm run test:watch
 | Job Queries | 3 |
 | Complete Scenarios | 2 |
 | **Total per flavor** | **43** |
-| **Total (3 flavors)** | **129** |
+| **Total (4 flavors)** | **172** |
 
 ## Configuration
 
@@ -70,12 +71,42 @@ Tests are configured via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SCHEDULER_FLAVOR` | `postgres` | Scheduler flavor to test (`postgres`, `mysql`, `cockroach`) |
+| `SCHEDULER_FLAVOR` | `postgres` | Scheduler flavor to test (`postgres`, `mysql`, `cockroach`, `activemq`) |
+| `SCHEDULER_URL` | (per flavor) | Scheduler HTTP endpoint |
+| `KAFKA_BROKERS` | `localhost:9092` | Kafka broker addresses (for Kafka flavors) |
+| `ACTIVEMQ_HOST` | `localhost` | ActiveMQ STOMP host (for activemq flavor) |
+| `ACTIVEMQ_PORT` | `61613` | ActiveMQ STOMP port (for activemq flavor) |
 
 ## Scheduler Endpoints
 
-| Flavor | URL | Kafka Topic |
-|--------|-----|-------------|
-| PostgreSQL | http://localhost:8091 | scheduler-in-postgres |
-| MySQL | http://localhost:8092 | scheduler-in-mysql |
-| CockroachDB | http://localhost:8093 | scheduler-in-cockroach |
+| Flavor | URL | Messaging | Database |
+|--------|-----|-----------|----------|
+| PostgreSQL | http://localhost:8091 | Kafka: `scheduler-in-postgres` | PostgreSQL |
+| MySQL | http://localhost:8092 | Kafka: `scheduler-in-mysql` | MySQL |
+| CockroachDB | http://localhost:8093 | Kafka: `scheduler-in-cockroach` | CockroachDB |
+| ActiveMQ | http://localhost:8094 | ActiveMQ: `scheduler-in-activemq` | MySQL |
+
+## Architecture
+
+The test suite uses a polymorphic messaging abstraction to support both Kafka and ActiveMQ:
+
+```
+MessagingClient (abstract)
+├── KafkaClient     - KafkaJS for Kafka-based schedulers
+└── ActiveMQClient  - STOMP protocol for ActiveMQ schedulers
+```
+
+The `MessagingClientFactory` creates the appropriate client based on `config.messagingType`:
+- `kafka` - PostgreSQL, MySQL, CockroachDB flavors
+- `activemq` - ActiveMQ flavor
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/messaging/MessagingClient.js` | Abstract base class defining the interface |
+| `src/messaging/KafkaClient.js` | Kafka implementation using KafkaJS |
+| `src/messaging/ActiveMQClient.js` | ActiveMQ implementation using STOMP |
+| `src/messaging/MessagingClientFactory.js` | Factory for creating messaging clients |
+| `src/config.js` | Per-flavor configuration (URLs, topics, queues) |
+| `src/scheduler.test.js` | The test suite (43 tests) |

@@ -145,8 +145,34 @@ The scheduler uses `java.util.concurrent.DelayQueue` for precise, push-based tim
 | Integration | Apache Camel (XML DSL) |
 | Build | Gradle |
 | Java | 21 LTS |
-| Database | PostgreSQL / CockroachDB |
-| Messaging | Pub/sub agnostic via Camel endpoints |
+| Database | PostgreSQL / MySQL / CockroachDB |
+| Messaging | Pub/sub agnostic via Camel endpoints (Kafka, ActiveMQ, etc.) |
+
+## Messaging Abstraction
+
+The scheduler is messaging-agnostic through Apache Camel. Camel route files define the messaging endpoints:
+
+| Route File | Messaging System |
+|------------|------------------|
+| `camel/kafka.xml` | Apache Kafka |
+| `camel/activemq.xml` | Apache ActiveMQ (via STOMP/JMS) |
+
+Select the route at startup:
+```properties
+camel.main.routesIncludePattern=classpath:camel/kafka.xml    # or activemq.xml
+```
+
+### Integration Tests
+
+The Node.js integration test suite uses a polymorphic messaging client:
+
+```
+MessagingClient (abstract)
+├── KafkaClient     - KafkaJS for Kafka-based schedulers
+└── ActiveMQClient  - STOMP protocol for ActiveMQ schedulers
+```
+
+This allows the same 43 tests to run against all 4 scheduler flavors (172 total tests).
 
 ## Configuration
 

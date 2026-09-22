@@ -135,93 +135,50 @@ docker compose -f src/test/resources/docker-compose-test.yml down
 
 ### Integration Tests
 
-Integration tests require Kafka and a database. The project supports PostgreSQL, MySQL, and CockroachDB.
+Integration tests run against containerized scheduler instances with full infrastructure (databases, Kafka, ActiveMQ). The project supports 4 flavors:
 
-#### 1. Start Test Containers
+| Flavor | Database | Messaging | Port |
+|--------|----------|-----------|------|
+| PostgreSQL | PostgreSQL | Kafka | 8091 |
+| MySQL | MySQL | Kafka | 8092 |
+| CockroachDB | CockroachDB | Kafka | 8093 |
+| ActiveMQ | MySQL | ActiveMQ | 8094 |
 
-**PostgreSQL + Kafka:**
+#### Quick Start (Recommended)
+
 ```bash
-docker run -d --name test-postgres \
-  -e POSTGRES_DB=scheduler \
-  -e POSTGRES_USER=scheduler \
-  -e POSTGRES_PASSWORD=scheduler \
-  -p 5433:5432 \
-  postgres:16
+# Start all infrastructure and schedulers
+./scripts/start-test-infra.sh
 
-docker run -d --name test-kafka \
-  -e KAFKA_NODE_ID=0 \
-  -e KAFKA_PROCESS_ROLES=controller,broker \
-  -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
-  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
-  -e KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093 \
-  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
-  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
-  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-  -e CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk \
-  -p 9092:9092 \
-  apache/kafka:4.3.1
-
-# Initialize PostgreSQL schema
-docker exec -i test-postgres psql -U scheduler -d scheduler < src/test/resources/db/init-postgresql.sql
+# Run all 172 tests (43 tests × 4 flavors) in parallel
+./scripts/run-integration-tests.sh
 ```
 
-**MySQL + Kafka:**
+#### Manual Setup
+
 ```bash
-docker run -d --name test-mysql \
-  -e MYSQL_DATABASE=scheduler \
-  -e MYSQL_USER=scheduler \
-  -e MYSQL_PASSWORD=scheduler \
-  -e MYSQL_ROOT_PASSWORD=root \
-  -p 3307:3306 \
-  mysql:8
+# Start test infrastructure via Docker Compose
+docker-compose -f src/test/resources/docker-compose-test.yml up -d
 
-# Wait for MySQL to be ready (~30 seconds)
-sleep 30
+# Wait for all services to be healthy
+./scripts/start-test-infra.sh
 
-# Initialize MySQL schema
-docker exec -i test-mysql mysql -uscheduler -pscheduler scheduler < src/test/resources/db/init-mysql.sql
+# Run tests for a specific flavor
+cd integration-tests
+npm install
+SCHEDULER_FLAVOR=postgres npm test     # PostgreSQL + Kafka
+SCHEDULER_FLAVOR=mysql npm test        # MySQL + Kafka
+SCHEDULER_FLAVOR=cockroach npm test    # CockroachDB + Kafka
+SCHEDULER_FLAVOR=activemq npm test     # MySQL + ActiveMQ
+
+# Run all flavors in parallel
+npm run test:parallel
 ```
 
-**CockroachDB + Kafka:**
-```bash
-docker run -d --name test-cockroachdb \
-  -p 26257:26257 \
-  cockroachdb/cockroach:v23.2.0 start-single-node --insecure
-
-# Wait for CockroachDB to be ready
-sleep 5
-
-# Initialize CockroachDB schema
-docker exec -i test-cockroachdb ./cockroach sql --insecure -e "CREATE DATABASE IF NOT EXISTS scheduler"
-docker exec -i test-cockroachdb ./cockroach sql --insecure -d scheduler < src/test/resources/db/init-cockroachdb.sql
-```
-
-#### 2. Run Integration Tests
+#### Stop Test Infrastructure
 
 ```bash
-# PostgreSQL integration tests
-./gradlew test --tests '*PostgresIT'
-
-# MySQL integration tests
-./gradlew test --tests '*MySqlIT'
-
-# CockroachDB integration tests
-./gradlew test --tests '*CockroachDbIT'
-
-# All integration tests
-./gradlew test --tests '*IT'
-```
-
-#### 3. Stop Test Containers
-
-```bash
-# Stop and remove individual containers
-docker stop test-postgres test-kafka test-mysql test-cockroachdb 2>/dev/null
-docker rm test-postgres test-kafka test-mysql test-cockroachdb 2>/dev/null
-
-# Or stop all at once
-docker rm -f test-postgres test-kafka test-mysql test-cockroachdb
+docker-compose -f src/test/resources/docker-compose-test.yml down -v
 ```
 
 ### Full Stack Testing with Docker Compose
@@ -255,9 +212,10 @@ Build and run the scheduler in Docker, then test the API endpoints:
 
 # This will:
 # 1. Build the Docker image
-# 2. Start PostgreSQL, Kafka, and Scheduler containers
-# 3. Run API endpoint tests
-# 4. Clean up containers
+# 2. Start all infrastructure (PostgreSQL, MySQL, CockroachDB, Kafka, ActiveMQ)
+# 3. Start 4 scheduler instances (one per flavor)
+# 4. Run 172 API/messaging tests in parallel (43 tests × 4 flavors)
+# 5. Clean up containers
 ```
 
 ## Usage
@@ -629,7 +587,7 @@ All configuration can be set via environment variables or `application.propertie
 | `QUARKUS_DATASOURCE_USERNAME` | Database username | `scheduler` |
 | `QUARKUS_DATASOURCE_PASSWORD` | Database password | `scheduler` |
 
-#### Messaging
+#### Messaging (Kafka)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -639,6 +597,34 @@ All configuration can be set via environment variables or `application.propertie
 | `SCHEDULER_ADVISORY` | Advisory events endpoint | `kafka:scheduler.advisory` |
 | `SCHEDULER_DLQ` | Dead letter queue for failed ingests | `kafka:scheduler.dlq` |
 | `SCHEDULER_ADVISORY_DLQ` | Dead letter queue for failed advisories | `kafka:scheduler.advisory.dlq` |
+
+#### Messaging (ActiveMQ)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CAMEL_MAIN_ROUTESINCLUDEPATTERN` | Camel routes file | `classpath:camel/kafka.xml` |
+| `CAMEL_COMPONENT_ACTIVEMQ_BROKERURL` | ActiveMQ broker URL | `tcp://localhost:61616` |
+| `CAMEL_COMPONENT_ACTIVEMQ_USERNAME` | ActiveMQ username | `admin` |
+| `CAMEL_COMPONENT_ACTIVEMQ_PASSWORD` | ActiveMQ password | `admin` |
+| `SCHEDULER_IN` | Inbound queue | `activemq:queue:scheduler.in` |
+| `SCHEDULER_ADVISORY` | Advisory topic | `activemq:topic:scheduler.advisory` |
+| `SCHEDULER_DLQ` | Dead letter queue | `activemq:queue:scheduler.dlq` |
+| `SCHEDULER_ADVISORY_DLQ` | Advisory DLQ | `activemq:queue:scheduler.advisory.dlq` |
+
+To use ActiveMQ instead of Kafka, set:
+```bash
+CAMEL_MAIN_ROUTESINCLUDEPATTERN=classpath:camel/activemq.xml
+```
+
+**Example configurations:** See `src/main/resources/examples/`:
+- `application-kafka.properties` — Kafka messaging setup
+- `application-activemq.properties` — ActiveMQ messaging setup
+
+**Docker env files:** See `docker/`:
+- `scheduler-postgres.env` — PostgreSQL + Kafka
+- `scheduler-mysql.env` — MySQL + Kafka
+- `scheduler-cockroach.env` — CockroachDB + Kafka
+- `scheduler-activemq.env` — MySQL + ActiveMQ
 
 #### Job Defaults
 
@@ -743,6 +729,46 @@ Database integration tests run multiple Quarkus instances and require more memor
 ./gradlew databaseTest  # Uses 3GB heap, forks per test class
 ./gradlew test          # Uses 2GB heap
 ```
+
+### Configuration Examples
+
+Complete example configurations are provided in `src/main/resources/examples/`:
+
+#### Messaging
+
+| File | Description |
+|------|-------------|
+| `application-kafka.properties` | Kafka messaging (default) |
+| `application-activemq.properties` | ActiveMQ/Artemis messaging |
+
+#### Kafka Security
+
+| File | Description |
+|------|-------------|
+| `application-kafka-ssl.properties` | TLS encryption |
+| `application-kafka-sasl-plain.properties` | Username/password authentication |
+| `application-kafka-sasl-scram.properties` | SCRAM challenge-response auth |
+| `application-kafka-oauthbearer.properties` | OAuth 2.0 / OIDC (Keycloak, Auth0, etc.) |
+
+#### Secrets Management
+
+| File | Description |
+|------|-------------|
+| `application-aws-secrets.properties` | AWS Secrets Manager |
+| `application-aws-ssm.properties` | AWS Parameter Store |
+| `application-vault.properties` | HashiCorp Vault |
+| `application-k8s-secrets.properties` | Kubernetes mounted secrets |
+
+#### Docker Environment Files
+
+Ready-to-use env files in `docker/`:
+
+| File | Database | Messaging |
+|------|----------|-----------|
+| `scheduler-postgres.env` | PostgreSQL | Kafka |
+| `scheduler-mysql.env` | MySQL | Kafka |
+| `scheduler-cockroach.env` | CockroachDB | Kafka |
+| `scheduler-activemq.env` | MySQL | ActiveMQ |
 
 ### Secrets Management
 
