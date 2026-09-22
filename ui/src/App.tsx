@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ScheduledJob, JobStats, JobState, JobFilters, CreateJobRequest, TimingType } from './types';
 import { fetchJobs, fetchStats, cancelJob, createJob, updateJob } from './api';
 import { AtTiming, DurationTiming, CronTiming } from './components';
@@ -27,6 +27,7 @@ function App() {
     return saved ? JSON.parse(saved) : { states: [], key: '', destination: '' };
   });
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [timingType, setTimingType] = useState<TimingType>('DURATION');
@@ -81,6 +82,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem('scheduler-column-filters', JSON.stringify(columnFilters));
   }, [columnFilters]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setActiveFilter(null);
+      }
+    };
+    if (activeFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [activeFilter]);
 
   const handleCancel = async (id: string) => {
     if (!confirm('Are you sure you want to cancel this job?')) return;
@@ -453,7 +466,7 @@ function App() {
                     </button>
                   </div>
                   {activeFilter === 'state' && (
-                    <div className="filter-dropdown checkbox-dropdown">
+                    <div ref={filterRef} className="filter-dropdown checkbox-dropdown">
                       {(['PENDING', 'WAITING', 'ACQUIRED', 'RUNNING', 'DONE', 'FAILED'] as JobState[]).map(state => (
                         <label key={state} className="checkbox-label">
                           <input
@@ -486,7 +499,7 @@ function App() {
                     </button>
                   </div>
                   {activeFilter === 'key' && (
-                    <div className="filter-dropdown">
+                    <div ref={filterRef} className="filter-dropdown">
                       <input
                         type="text"
                         placeholder="Filter by key..."
@@ -511,7 +524,7 @@ function App() {
                     </button>
                   </div>
                   {activeFilter === 'destination' && (
-                    <div className="filter-dropdown">
+                    <div ref={filterRef} className="filter-dropdown">
                       <select
                         value={columnFilters.destination}
                         onChange={e => handleColumnFilter('destination', e.target.value)}
