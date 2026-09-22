@@ -5,19 +5,17 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
     id UUID PRIMARY KEY,
     job_key VARCHAR(255),
     key_policy VARCHAR(50) NOT NULL DEFAULT 'QUEUE',
-    sleep_start VARCHAR(50) NOT NULL DEFAULT 'SELF',
-    sleep_duration VARCHAR(50),
-    sleep_repeat INT NOT NULL DEFAULT 1,
+    wait_start VARCHAR(50) NOT NULL DEFAULT 'SELF',
+    wait_duration VARCHAR(50),
+    wait_repeat INT NOT NULL DEFAULT 1,
+    wait_until TIMESTAMP WITH TIME ZONE,
     cron_expression VARCHAR(100),
-    cron_end TIMESTAMP WITH TIME ZONE,
-    cron_max_count INT,
-    cron_fire_count INT NOT NULL DEFAULT 0,
-    cron_concurrent BOOLEAN DEFAULT TRUE,
-    cron_gap_min VARCHAR(50),
-    cron_misfire_policy VARCHAR(50),
+    cron_until TIMESTAMP WITH TIME ZONE,
+    cron_repeat INT,
+    cron_run_count INT NOT NULL DEFAULT 0,
 
-    fire_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    effective_fire_at TIMESTAMP WITH TIME ZONE,
+    run_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    effective_run_at TIMESTAMP WITH TIME ZONE,
     arrived_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
     destination_topic VARCHAR(500) NOT NULL,
@@ -53,4 +51,5 @@ CREATE TABLE IF NOT EXISTS scheduler_instances (
 -- Indexes (H2 compatible - no partial indexes)
 CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_key_state ON scheduled_jobs (job_key, state);
 CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_predecessor ON scheduled_jobs (predecessor_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_pending_run ON scheduled_jobs (effective_run_at);
 CREATE INDEX IF NOT EXISTS idx_scheduler_instances_heartbeat ON scheduler_instances (heartbeat_at);

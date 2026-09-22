@@ -4,8 +4,11 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import net.maxf.pubsub.scheduler.model.JobState;
+import net.maxf.pubsub.scheduler.model.KeyPolicy;
 import net.maxf.pubsub.scheduler.model.ScheduledJob;
+import net.maxf.pubsub.scheduler.service.JobQueueService;
 import net.maxf.pubsub.scheduler.service.JobStoreService;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -17,13 +20,16 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @QuarkusTest
 class JobResourceTest {
 
     @InjectMock
     JobStoreService jobStore;
+
+    @InjectMock
+    JobQueueService jobQueue;
 
     @Test
     void listJobs_returnsJobList() {
@@ -309,5 +315,316 @@ class JobResourceTest {
         job.setRunAt(Instant.now());
         job.setEffectiveRunAt(Instant.now());
         return job;
+    }
+
+    @Nested
+    class UpdateJobTests {
+
+        @Test
+        void updateJob_pendingJob_succeeds() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "new-topic",
+                        "jobKey": "updated-key",
+                        "runAt": "2099-12-31T23:59:59Z"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("destinationTopic", equalTo("new-topic"))
+                .body("jobKey", equalTo("updated-key"));
+
+            verify(jobStore).update(any(ScheduledJob.class));
+            verify(jobQueue).requeue(any(ScheduledJob.class));
+        }
+
+        @Test
+        void updateJob_waitingJob_succeeds() {
+            ScheduledJob job = createJob("waiting-key");
+            job.setState(JobState.WAITING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "updated-topic",
+                        "waitDuration": "PT30M"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("destinationTopic", equalTo("updated-topic"));
+
+            verify(jobStore).update(any(ScheduledJob.class));
+            verify(jobQueue).requeue(any(ScheduledJob.class));
+        }
+
+        @Test
+        void updateJob_notFound_returns404() {
+            UUID id = UUID.randomUUID();
+            when(jobStore.findById(id)).thenReturn(Optional.empty());
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "some-topic"
+                    }
+                    """)
+                .when().put("/api/jobs/" + id)
+                .then()
+                .statusCode(404)
+                .body("error", equalTo("Job not found"));
+        }
+
+        @Test
+        void updateJob_acquiredJob_returns409() {
+            ScheduledJob job = createJob("acquired-key");
+            job.setState(JobState.ACQUIRED);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "some-topic"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(409)
+                .body("error", containsString("ACQUIRED"));
+        }
+
+        @Test
+        void updateJob_runningJob_returns409() {
+            ScheduledJob job = createJob("running-key");
+            job.setState(JobState.RUNNING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "some-topic"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(409)
+                .body("error", containsString("RUNNING"));
+        }
+
+        @Test
+        void updateJob_doneJob_returns409() {
+            ScheduledJob job = createJob("done-key");
+            job.setState(JobState.DONE);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "some-topic"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(409)
+                .body("error", containsString("DONE"));
+        }
+
+        @Test
+        void updateJob_failedJob_returns409() {
+            ScheduledJob job = createJob("failed-key");
+            job.setState(JobState.FAILED);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "some-topic"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(409)
+                .body("error", containsString("FAILED"));
+        }
+
+        @Test
+        void updateJob_missingDestination_returns400() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "jobKey": "some-key"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(400)
+                .body("error", containsString("destinationTopic is required"));
+        }
+
+        @Test
+        void updateJob_blankDestination_returns400() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "   "
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(400)
+                .body("error", containsString("destinationTopic is required"));
+        }
+
+        @Test
+        void updateJob_invalidWaitDuration_returns400() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "valid-topic",
+                        "waitDuration": "invalid-duration"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(400)
+                .body("error", containsString("waitDuration is not a valid ISO-8601 duration"));
+        }
+
+        @Test
+        void updateJob_invalidTopicName_returns400() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "invalid topic with spaces!"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(400)
+                .body("error", containsString("invalid characters"));
+        }
+
+        @Test
+        void updateJob_negativeMaxRetries_returns400() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "valid-topic",
+                        "maxRetries": -1
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(400)
+                .body("error", containsString("maxRetries must be non-negative"));
+        }
+
+        @Test
+        void updateJob_withKeyPolicy_setsKeyPolicy() {
+            ScheduledJob job = createJob("test-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "valid-topic",
+                        "keyPolicy": "REPLACE"
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(200)
+                .body("keyPolicy", equalTo("REPLACE"));
+        }
+
+        @Test
+        void updateJob_withCronExpression_setsCronFields() {
+            ScheduledJob job = createJob("cron-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "valid-topic",
+                        "cronExpression": "0 0 * * *",
+                        "cronRepeat": 10
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(200)
+                .body("cronExpression", equalTo("0 0 * * *"))
+                .body("cronRepeat", equalTo(10));
+        }
+
+        @Test
+        void updateJob_withWaitDuration_setsWaitFields() {
+            ScheduledJob job = createJob("wait-key");
+            job.setState(JobState.PENDING);
+            when(jobStore.findById(job.getId())).thenReturn(Optional.of(job));
+
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "destinationTopic": "valid-topic",
+                        "waitDuration": "PT1H",
+                        "waitStart": "PREV",
+                        "waitRepeat": 5
+                    }
+                    """)
+                .when().put("/api/jobs/" + job.getId())
+                .then()
+                .statusCode(200)
+                .body("waitDuration", equalTo("PT1H"))
+                .body("waitStart", equalTo("PREV"))
+                .body("waitRepeat", equalTo(5));
+        }
     }
 }

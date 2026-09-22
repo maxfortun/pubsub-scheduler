@@ -10,7 +10,7 @@
       "y": 20,
       "width": 450,
       "height": 35,
-      "text": "SLEEP_START: SELF vs PREV",
+      "text": "WAIT_START: SELF vs PREV",
       "fontSize": 28,
       "fontFamily": 1,
       "textAlign": "center",
@@ -47,7 +47,7 @@
       "y": 110,
       "width": 300,
       "height": 25,
-      "text": "SLEEP_START: SELF (Default)",
+      "text": "WAIT_START: SELF (Default)",
       "fontSize": 18,
       "fontFamily": 1,
       "strokeColor": "#1971c2"
@@ -237,7 +237,7 @@
       "y": 110,
       "width": 300,
       "height": 25,
-      "text": "SLEEP_START: PREV",
+      "text": "WAIT_START: PREV",
       "fontSize": 18,
       "fontFamily": 1,
       "strokeColor": "#e67700"

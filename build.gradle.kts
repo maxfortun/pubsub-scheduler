@@ -100,9 +100,56 @@ tasks.register<Test>("databaseTest") {
         includeTags("database")
     }
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-    // Database tests spawn multiple Quarkus instances - need more memory and fresh JVMs
     maxHeapSize = "3g"
     forkEvery = 1
+}
+
+tasks.register<Test>("postgresTest") {
+    description = "Runs PostgreSQL integration tests"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("postgres")
+    }
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+    maxHeapSize = "2g"
+    forkEvery = 1
+    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/postgres"))
+    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/postgres"))
+    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/postgres/binary"))
+}
+
+tasks.register<Test>("mysqlTest") {
+    description = "Runs MySQL integration tests"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("mysql")
+    }
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+    maxHeapSize = "2g"
+    forkEvery = 1
+    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/mysql"))
+    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/mysql"))
+    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/mysql/binary"))
+}
+
+tasks.register<Test>("cockroachTest") {
+    description = "Runs CockroachDB integration tests"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("cockroachdb")
+    }
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+    maxHeapSize = "2g"
+    forkEvery = 1
+    reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/cockroachdb"))
+    reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/cockroachdb"))
+    binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/cockroachdb/binary"))
+}
+
+tasks.register("parallelDatabaseTest") {
+    description = "Runs all database tests in parallel (use: ./gradlew parallelDatabaseTest --parallel)"
+    group = "verification"
+    dependsOn("postgresTest", "mysqlTest", "cockroachTest")
 }
 
 tasks.withType<JavaCompile> {

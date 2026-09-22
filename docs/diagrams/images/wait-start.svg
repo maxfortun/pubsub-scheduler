@@ -9,10 +9,10 @@
     text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
   </style>
-  <text x="505" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >SLEEP_START: SELF vs PREV</text>
+  <text x="505" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >WAIT_START: SELF vs PREV</text>
   <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >Controls the reference point for SCHEDULER_WAIT duration when using QUEUE policy:</text>
   <rect x="50" y="100" width="450" height="250" fill="#e7f5ff" stroke="#1971c2" stroke-width="1" rx="8" />
-  <text x="60" y="125.3" font-size="18" fill="#1971c2" text-anchor="start" >SLEEP_START: SELF (Default)</text>
+  <text x="60" y="125.3" font-size="18" fill="#1971c2" text-anchor="start" >WAIT_START: SELF (Default)</text>
   <text x="60" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Sleep duration counted from THIS job's arrival time.</text>
   <text x="60" y="164.6" font-size="12" fill="#1e1e1e" text-anchor="start" >Each job sleeps independently.</text>
   <line x1="70" y1="280" x2="470" y2="280" stroke="#868e96" stroke-width="2"  />
@@ -31,7 +31,7 @@
   <text x="60" y="324.35" font-size="11" fill="#495057" text-anchor="start" >B's fire time = B's arrival + 5min</text>
   <text x="60" y="337.55" font-size="11" fill="#495057" text-anchor="start" >(B waits for A, but its scheduled time is from its own arrival)</text>
   <rect x="520" y="100" width="450" height="250" fill="#fff4e6" stroke="#e67700" stroke-width="1" rx="8" />
-  <text x="530" y="125.3" font-size="18" fill="#e67700" text-anchor="start" >SLEEP_START: PREV</text>
+  <text x="530" y="125.3" font-size="18" fill="#e67700" text-anchor="start" >WAIT_START: PREV</text>
   <text x="530" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Sleep duration counted from PREVIOUS job's completion.</text>
   <text x="530" y="164.6" font-size="12" fill="#1e1e1e" text-anchor="start" >Creates fixed gaps between executions.</text>
   <line x1="540" y1="280" x2="940" y2="280" stroke="#868e96" stroke-width="2"  />

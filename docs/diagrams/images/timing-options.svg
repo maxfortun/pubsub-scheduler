@@ -9,7 +9,7 @@
     text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
   </style>
-  <text x="500" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >Timing Options: AT, SLEEP, CRON</text>
+  <text x="500" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >Timing Options: AT, WAIT, CRON</text>
   <text x="50" y="95.3" font-size="18" fill="#1971c2" text-anchor="start" >SCHEDULER_AT (Absolute Time)</text>
   <line x1="50" y1="150" x2="650" y2="150" stroke="#868e96" stroke-width="2"  />
   <ellipse cx="90" cy="150" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1"/>
@@ -32,7 +32,7 @@
   <rect x="50" y="280" width="200" height="25" fill="#fff3bf" stroke="#e67700" stroke-width="1" rx="8" />
   <text x="55" y="293.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT: PT5M</text>
   <rect x="350" y="270" width="300" height="80" fill="#fff9db" stroke="#e67700" stroke-width="1" rx="8" />
-  <text x="360" y="285.2" font-size="12" fill="#e67700" text-anchor="start" >With SLEEP_REPEAT:</text>
+  <text x="360" y="285.2" font-size="12" fill="#e67700" text-anchor="start" >With WAIT_REPEAT:</text>
   <text x="360" y="304.35" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT: PT5M</text>
   <text x="360" y="317.55" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">SCHEDULER_WAIT_REPEAT: 3</text>
   <text x="360" y="330.75" font-size="11" fill="#1e1e1e" text-anchor="start" class="mono">→ Fires 3 times, 5 min apart</text>
@@ -60,10 +60,10 @@
   <text x="510" y="489.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_GAP_MIN: PT10M</text>
   <text x="510" y="501.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Min 10min between runs</text>
   <text x="510" y="513.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono"></text>
-  <text x="510" y="525.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_END: 2026-12-31T23:59:59Z</text>
+  <text x="510" y="525.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_UNTIL: 2026-12-31T23:59:59Z</text>
   <text x="510" y="537.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Stop after date</text>
   <text x="510" y="549.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono"></text>
-  <text x="510" y="561.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_COUNT: 30</text>
+  <text x="510" y="561.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">CRON_REPEAT: 30</text>
   <text x="510" y="573.5" font-size="10" fill="#1e1e1e" text-anchor="start" class="mono">  → Stop after 30 runs</text>
   <text x="50" y="580.2" font-size="12" fill="#495057" text-anchor="start" >Fire on schedule. Use for: daily reports, cleanup tasks,</text>
   <text x="50" y="594.6" font-size="12" fill="#495057" text-anchor="start" >periodic sync, health checks.</text>

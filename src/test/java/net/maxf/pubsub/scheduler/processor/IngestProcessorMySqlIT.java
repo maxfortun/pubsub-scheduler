@@ -11,6 +11,7 @@ import java.util.Map;
 @QuarkusTest
 @TestProfile(IngestProcessorMySqlIT.MySqlTestProfile.class)
 @Tag("database")
+@Tag("mysql")
 class IngestProcessorMySqlIT extends AbstractKafkaIT {
 
     public static class MySqlTestProfile implements QuarkusTestProfile {

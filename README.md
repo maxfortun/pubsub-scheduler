@@ -118,8 +118,16 @@ Database-specific tests verify DAO implementations against real databases:
 # Start test containers first
 docker compose -f src/test/resources/docker-compose-test.yml up -d
 
-# Run database tests
+# Run database tests (sequential)
 ./gradlew databaseTest
+
+# Run database tests in parallel (faster)
+./gradlew parallelDatabaseTest --parallel
+
+# Run tests for a specific database
+./gradlew postgresTest    # PostgreSQL only
+./gradlew mysqlTest       # MySQL only
+./gradlew cockroachTest   # CockroachDB only
 
 # Stop containers
 docker compose -f src/test/resources/docker-compose-test.yml down
@@ -952,6 +960,11 @@ curl http://localhost:8080/api/jobs/{job-id}
 # Cancel a pending job
 curl -X DELETE http://localhost:8080/api/jobs/{job-id}
 
+# Edit a pending/waiting job (returns 409 if job state has changed)
+curl -X PUT http://localhost:8080/api/jobs/{job-id} \
+  -H 'Content-Type: application/json' \
+  -d '{"destinationTopic": "orders.process", "waitDuration": "PT10M"}'
+
 # Get job statistics
 curl http://localhost:8080/api/jobs/stats
 ```
@@ -1060,11 +1073,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 *States: PENDING → ACQUIRED → RUNNING → DONE. Key policies determine queueing behavior.*
 
-#### Timing Options: AT, SLEEP, CRON
+#### Timing Options: AT, WAIT, CRON
 
 ![Timing Options](docs/diagrams/images/timing-options.png)
 
-*AT: absolute time. SLEEP: relative delay with repeat. CRON: recurring with gap/end options.*
+*AT: absolute time. WAIT: relative delay with repeat. CRON: recurring with gap/end options.*
 
 #### Key Policies: QUEUE, REPLACE, SKIP
 

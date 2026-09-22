@@ -30,6 +30,10 @@ public class DaoProducer {
     CockroachDbInstanceDao cockroachDbInstanceDao;
 
     @Inject
+    @H2
+    H2InstanceDao h2InstanceDao;
+
+    @Inject
     @Postgres
     PostgresJobDao postgresJobDao;
 
@@ -41,12 +45,16 @@ public class DaoProducer {
     @CockroachDb
     CockroachDbJobDao cockroachDbJobDao;
 
+    @Inject
+    @H2
+    H2JobDao h2JobDao;
+
     @Produces
     @ApplicationScoped
     public InstanceDao instanceDao() {
         String dialect = getEffectiveDialect();
         LOG.infof("Selecting InstanceDao for database dialect: %s", dialect);
-        return selectByDialect(dialect, postgresInstanceDao, mySqlInstanceDao, cockroachDbInstanceDao);
+        return selectByDialect(dialect, postgresInstanceDao, mySqlInstanceDao, cockroachDbInstanceDao, h2InstanceDao);
     }
 
     @Produces
@@ -54,18 +62,19 @@ public class DaoProducer {
     public JobDao jobDao() {
         String dialect = getEffectiveDialect();
         LOG.infof("Selecting JobDao for database dialect: %s", dialect);
-        return selectByDialect(dialect, postgresJobDao, mySqlJobDao, cockroachDbJobDao);
+        return selectByDialect(dialect, postgresJobDao, mySqlJobDao, cockroachDbJobDao, h2JobDao);
     }
 
     private String getEffectiveDialect() {
         return dbDialect.orElse(dbKind);
     }
 
-    private <T> T selectByDialect(String dialect, T postgresImpl, T mySqlImpl, T cockroachDbImpl) {
+    private <T> T selectByDialect(String dialect, T postgresImpl, T mySqlImpl, T cockroachDbImpl, T h2Impl) {
         return switch (dialect.toLowerCase()) {
             case "mysql", "mariadb" -> mySqlImpl;
             case "cockroachdb", "cockroach" -> cockroachDbImpl;
-            case "postgresql", "postgres", "h2" -> postgresImpl;
+            case "h2" -> h2Impl;
+            case "postgresql", "postgres" -> postgresImpl;
             default -> {
                 LOG.warnf("Unknown database dialect '%s', defaulting to PostgreSQL DAO", dialect);
                 yield postgresImpl;

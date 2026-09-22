@@ -11,6 +11,7 @@ import java.util.Map;
 @QuarkusTest
 @TestProfile(IngestProcessorPostgresIT.PostgresTestProfile.class)
 @Tag("database")
+@Tag("postgres")
 class IngestProcessorPostgresIT extends AbstractKafkaIT {
 
     public static class PostgresTestProfile implements QuarkusTestProfile {

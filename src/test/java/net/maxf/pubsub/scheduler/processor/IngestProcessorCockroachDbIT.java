@@ -11,6 +11,7 @@ import java.util.Map;
 @QuarkusTest
 @TestProfile(IngestProcessorCockroachDbIT.CockroachDbTestProfile.class)
 @Tag("database")
+@Tag("cockroachdb")
 class IngestProcessorCockroachDbIT extends AbstractKafkaIT {
 
     public static class CockroachDbTestProfile implements QuarkusTestProfile {
