@@ -53,16 +53,17 @@ export function CronTiming({ form, onChange }: CronTimingProps) {
             placeholder="unlimited"
             min="0"
           />
-          <div className="field-hint">0 or empty = unlimited</div>
+          <div className="field-hint">Empty = unlimited</div>
         </div>
         <div className="form-group">
-          <label>Until</label>
+          <label>Until (optional)</label>
           <input
             type="datetime-local"
             value={cronUntilLocal}
             onChange={e => handleUntilChange(e.target.value)}
+            placeholder="Unlimited"
           />
-          <div className="field-hint">Stop scheduling after this time</div>
+          <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>
     </div>

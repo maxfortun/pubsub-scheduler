@@ -60,13 +60,14 @@ export function DurationTiming({ form, onChange }: DurationTimingProps) {
           <div className="field-hint">1 = once, 0 = infinite</div>
         </div>
         <div className="form-group">
-          <label>Until</label>
+          <label>Until (optional)</label>
           <input
             type="datetime-local"
             value={waitUntilLocal}
             onChange={e => handleEndDateChange(e.target.value)}
+            placeholder="Unlimited"
           />
-          <div className="field-hint">Repeat until this time</div>
+          <div className="field-hint">Empty = unlimited</div>
         </div>
       </div>
     </div>
