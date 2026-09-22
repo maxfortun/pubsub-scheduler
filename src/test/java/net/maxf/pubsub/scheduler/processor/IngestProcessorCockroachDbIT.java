@@ -14,16 +14,22 @@ import java.util.Map;
 @Tag("cockroachdb")
 class IngestProcessorCockroachDbIT extends AbstractKafkaIT {
 
+    static {
+        SCHEDULER_IN_TOPIC = "scheduler-in-cockroach";
+        SCHEDULER_DLQ_TOPIC = "scheduler-dlq-cockroach";
+        SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory-cockroach";
+    }
+
     public static class CockroachDbTestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             Map<String, String> config = new HashMap<>();
             // Kafka endpoints - set broker globally, topic in endpoint
             config.put("camel.component.kafka.brokers", BOOTSTRAP_SERVERS);
-            config.put("scheduler.in", "kafka:" + SCHEDULER_IN_TOPIC);
-            config.put("scheduler.dlq", "kafka:" + SCHEDULER_DLQ_TOPIC);
-            config.put("scheduler.advisory", "kafka:scheduler-advisory");
-            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq");
+            config.put("scheduler.in", "kafka:scheduler-in-cockroach");
+            config.put("scheduler.dlq", "kafka:scheduler-dlq-cockroach");
+            config.put("scheduler.advisory", "kafka:scheduler-advisory-cockroach");
+            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq-cockroach");
             config.put("scheduler.consumer-group", "scheduler-cockroachdb-it-group");
             // CockroachDB (uses PostgreSQL JDBC driver)
             config.put("quarkus.datasource.db-kind", "postgresql");

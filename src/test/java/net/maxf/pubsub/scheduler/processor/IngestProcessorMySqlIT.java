@@ -14,16 +14,22 @@ import java.util.Map;
 @Tag("mysql")
 class IngestProcessorMySqlIT extends AbstractKafkaIT {
 
+    static {
+        SCHEDULER_IN_TOPIC = "scheduler-in-mysql";
+        SCHEDULER_DLQ_TOPIC = "scheduler-dlq-mysql";
+        SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory-mysql";
+    }
+
     public static class MySqlTestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             Map<String, String> config = new HashMap<>();
             // Kafka endpoints - set broker globally, topic in endpoint
             config.put("camel.component.kafka.brokers", BOOTSTRAP_SERVERS);
-            config.put("scheduler.in", "kafka:" + SCHEDULER_IN_TOPIC);
-            config.put("scheduler.dlq", "kafka:" + SCHEDULER_DLQ_TOPIC);
-            config.put("scheduler.advisory", "kafka:scheduler-advisory");
-            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq");
+            config.put("scheduler.in", "kafka:scheduler-in-mysql");
+            config.put("scheduler.dlq", "kafka:scheduler-dlq-mysql");
+            config.put("scheduler.advisory", "kafka:scheduler-advisory-mysql");
+            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq-mysql");
             config.put("scheduler.consumer-group", "scheduler-mysql-it-group");
             // MySQL
             config.put("quarkus.datasource.db-kind", "mysql");

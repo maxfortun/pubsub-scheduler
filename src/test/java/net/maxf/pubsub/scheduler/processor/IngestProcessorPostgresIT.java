@@ -14,16 +14,22 @@ import java.util.Map;
 @Tag("postgres")
 class IngestProcessorPostgresIT extends AbstractKafkaIT {
 
+    static {
+        SCHEDULER_IN_TOPIC = "scheduler-in-postgres";
+        SCHEDULER_DLQ_TOPIC = "scheduler-dlq-postgres";
+        SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory-postgres";
+    }
+
     public static class PostgresTestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             Map<String, String> config = new HashMap<>();
             // Kafka endpoints - set broker globally, topic in endpoint
             config.put("camel.component.kafka.brokers", BOOTSTRAP_SERVERS);
-            config.put("scheduler.in", "kafka:" + SCHEDULER_IN_TOPIC);
-            config.put("scheduler.dlq", "kafka:" + SCHEDULER_DLQ_TOPIC);
-            config.put("scheduler.advisory", "kafka:scheduler-advisory");
-            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq");
+            config.put("scheduler.in", "kafka:scheduler-in-postgres");
+            config.put("scheduler.dlq", "kafka:scheduler-dlq-postgres");
+            config.put("scheduler.advisory", "kafka:scheduler-advisory-postgres");
+            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq-postgres");
             config.put("scheduler.consumer-group", "scheduler-postgres-it-group");
             // PostgreSQL
             config.put("quarkus.datasource.db-kind", "postgresql");

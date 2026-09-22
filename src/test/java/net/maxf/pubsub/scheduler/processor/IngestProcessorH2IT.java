@@ -14,16 +14,22 @@ import java.util.Map;
 @Tag("h2")
 class IngestProcessorH2IT extends AbstractKafkaIT {
 
+    static {
+        SCHEDULER_IN_TOPIC = "scheduler-in-h2";
+        SCHEDULER_DLQ_TOPIC = "scheduler-dlq-h2";
+        SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory-h2";
+    }
+
     public static class H2TestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             Map<String, String> config = new HashMap<>();
             // Kafka endpoints - set broker globally, topic in endpoint
             config.put("camel.component.kafka.brokers", BOOTSTRAP_SERVERS);
-            config.put("scheduler.in", "kafka:" + SCHEDULER_IN_TOPIC);
-            config.put("scheduler.dlq", "kafka:" + SCHEDULER_DLQ_TOPIC);
-            config.put("scheduler.advisory", "kafka:scheduler-advisory");
-            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq");
+            config.put("scheduler.in", "kafka:scheduler-in-h2");
+            config.put("scheduler.dlq", "kafka:scheduler-dlq-h2");
+            config.put("scheduler.advisory", "kafka:scheduler-advisory-h2");
+            config.put("scheduler.advisory.dlq", "kafka:scheduler-advisory-dlq-h2");
             config.put("scheduler.consumer-group", "scheduler-h2-it-group");
             // H2 in-memory database with PostgreSQL compatibility mode
             config.put("quarkus.datasource.db-kind", "h2");

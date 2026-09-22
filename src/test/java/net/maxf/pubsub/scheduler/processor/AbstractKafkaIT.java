@@ -31,11 +31,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 abstract class AbstractKafkaIT {
 
-    static final String BOOTSTRAP_SERVERS = "localhost:9092";
-    static final String SCHEDULER_IN_TOPIC = "scheduler-in";
-    static final String SCHEDULER_DLQ_TOPIC = "scheduler-dlq";
-    static final String SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory";
-    static final String OUTPUT_TOPIC = "output-topic";
+    protected static final String BOOTSTRAP_SERVERS = "localhost:9092";
+    protected static final String OUTPUT_TOPIC = "output-topic";
+
+    // Topic names - override in subclasses for per-flavor isolation
+    protected static String SCHEDULER_IN_TOPIC = "scheduler-in";
+    protected static String SCHEDULER_DLQ_TOPIC = "scheduler-dlq";
+    protected static String SCHEDULER_ADVISORY_TOPIC = "scheduler-advisory";
 
     @Inject
     JobStoreService jobStore;
