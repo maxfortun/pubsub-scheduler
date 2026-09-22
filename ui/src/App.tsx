@@ -125,6 +125,7 @@ function App() {
       runAt: undefined,
       waitDuration: type === 'DURATION' ? 'PT1M' : undefined,
       waitRepeat: undefined,
+      waitUntil: undefined,
       cronExpression: undefined,
       cronUntil: undefined,
       cronRepeat: undefined,
@@ -182,7 +183,7 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Kafka Scheduler</h1>
+        <h1>Scheduler</h1>
         <div className="header-actions">
           <button className="create-btn" onClick={() => setShowCreateForm(true)}>
             + New Job
@@ -458,17 +459,23 @@ function App() {
               {selectedJob.waitDuration && (
                 <>
                   <div className="detail-row">
-                    <label>Sleep Duration:</label>
+                    <label>Wait Duration:</label>
                     <span>{selectedJob.waitDuration}</span>
                   </div>
                   <div className="detail-row">
-                    <label>Sleep Start:</label>
+                    <label>Wait Start:</label>
                     <span>{selectedJob.waitStart}</span>
                   </div>
                   <div className="detail-row">
-                    <label>Sleep Repeat:</label>
+                    <label>Wait Repeat:</label>
                     <span>{selectedJob.waitRepeat}</span>
                   </div>
+                  {selectedJob.waitUntil && (
+                    <div className="detail-row">
+                      <label>Wait Until:</label>
+                      <span>{formatDate(selectedJob.waitUntil)}</span>
+                    </div>
+                  )}
                 </>
               )}
               {selectedJob.cronExpression && (
@@ -478,9 +485,15 @@ function App() {
                     <span className="monospace">{selectedJob.cronExpression}</span>
                   </div>
                   <div className="detail-row">
-                    <label>Fire Count:</label>
+                    <label>Run Count:</label>
                     <span>{selectedJob.cronRunCount} / {selectedJob.cronRepeat || 'unlimited'}</span>
                   </div>
+                  {selectedJob.cronUntil && (
+                    <div className="detail-row">
+                      <label>Cron Until:</label>
+                      <span>{formatDate(selectedJob.cronUntil)}</span>
+                    </div>
+                  )}
                 </>
               )}
               <div className="detail-row">
