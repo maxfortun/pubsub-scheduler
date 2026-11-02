@@ -988,7 +988,7 @@ curl -X DELETE http://localhost:8080/api/jobs/{job-id}
 
 # Edit a pending/waiting job (returns 409 if job state has changed)
 curl -X PUT http://localhost:8080/api/jobs/{job-id} \
-  -H 'Content-Type: application/json' \
+  -H 'content-type: application/json' \
   -d '{"destinationTopic": "orders.process", "waitDuration": "PT10M"}'
 
 # Get job statistics

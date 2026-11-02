@@ -535,17 +535,17 @@ class IngestProcessorTest {
 
         @Test
         void nonStringHeaders_notPreserved() throws Exception {
-            message.setHeader("Integer-Header", 42);
-            message.setHeader("Boolean-Header", true);
-            message.setHeader("String-Header", "value");
+            message.setHeader("integer-header", 42);
+            message.setHeader("boolean-header", true);
+            message.setHeader("string-header", "value");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             var headers = jobCaptor.getValue().getHeaders();
-            assertFalse(headers.containsKey("Integer-Header"));
-            assertFalse(headers.containsKey("Boolean-Header"));
-            assertTrue(headers.containsKey("String-Header"));
+            assertFalse(headers.containsKey("integer-header"));
+            assertFalse(headers.containsKey("boolean-header"));
+            assertTrue(headers.containsKey("string-header"));
         }
     }
 

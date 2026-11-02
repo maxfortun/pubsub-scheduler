@@ -6,7 +6,7 @@
     "sleepDuration": "PT15M",
     "sleepRepeat": 0,
     "headers": {
-      "SCHEDULER_INTERNAL_JOB": "true"
+      "scheduler_internal_job": "true"
     },
     "body": "{\"type\":\"SCHEDULER_HEARTBEAT\"}",
     "maxRetries": 3

@@ -29,7 +29,7 @@ class JobPreloadServiceTest {
                   "keyPolicy": "SKIP",
                   "waitDuration": "PT15M",
                   "waitRepeat": 0,
-                  "headers": {"SCHEDULER_INTERNAL_JOB": "true"},
+                  "headers": {"scheduler_internal_job": "true"},
                   "body": "{\\"type\\":\\"SCHEDULER_HEARTBEAT\\"}",
                   "maxRetries": 3
                 }]
@@ -42,7 +42,7 @@ class JobPreloadServiceTest {
             assertEquals("SKIP", def.keyPolicy());
             assertEquals("PT15M", def.waitDuration());
             assertEquals(0, def.waitRepeat());
-            assertEquals("true", def.headers().get("SCHEDULER_INTERNAL_JOB"));
+            assertEquals("true", def.headers().get("scheduler_internal_job"));
             assertEquals(3, def.maxRetries());
         }
 
