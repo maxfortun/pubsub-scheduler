@@ -23,7 +23,7 @@
       "y": 60,
       "width": 700,
       "height": 20,
-      "text": "Controls the reference point for SCHEDULER_WAIT duration when using QUEUE policy:",
+      "text": "Controls the reference point for scheduler_wait duration when using QUEUE policy:",
       "fontSize": 14,
       "fontFamily": 1,
       "strokeColor": "#495057"
@@ -463,7 +463,7 @@
       "y": 445,
       "width": 400,
       "height": 70,
-      "text": "SCHEDULER_KEY: api-sync\nSCHEDULER_KEY_POLICY: QUEUE\nSCHEDULER_WAIT: PT1M\nSCHEDULER_WAIT_START: SELF",
+      "text": "scheduler_key: api-sync\nscheduler_key_policy: QUEUE\nscheduler_wait: PT1M\nscheduler_wait_start: SELF",
       "fontSize": 11,
       "fontFamily": 3
     },
@@ -498,7 +498,7 @@
       "y": 445,
       "width": 440,
       "height": 70,
-      "text": "SCHEDULER_KEY: api-sync\nSCHEDULER_KEY_POLICY: QUEUE\nSCHEDULER_WAIT: PT1M\nSCHEDULER_WAIT_START: PREV  ← wait 1min after prev completes",
+      "text": "scheduler_key: api-sync\nscheduler_key_policy: QUEUE\nscheduler_wait: PT1M\nscheduler_wait_start: PREV  ← wait 1min after prev completes",
       "fontSize": 11,
       "fontFamily": 3
     },

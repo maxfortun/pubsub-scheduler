@@ -45,34 +45,34 @@ public class AdvisoryService {
         Map<String, Object> headers = new HashMap<>();
 
         // Standard advisory headers
-        headers.put("SCHEDULER_ADVISORY_EVENT", event.name());
-        headers.put("SCHEDULER_ADVISORY_TIMESTAMP", Instant.now().toString());
-        headers.put("SCHEDULER_JOB_ID", job.getId().toString());
+        headers.put("scheduler_advisory_event", event.name());
+        headers.put("scheduler_advisory_timestamp", Instant.now().toString());
+        headers.put("scheduler_job_id", job.getId().toString());
 
         if (job.getJobKey() != null) {
-            headers.put("SCHEDULER_JOB_KEY", job.getJobKey());
+            headers.put("scheduler_job_key", job.getJobKey());
             // Use job key as Kafka message key for partition affinity
             headers.put("kafka.KEY", job.getJobKey());
         }
 
-        headers.put("SCHEDULER_JOB_STATE", job.getState().name());
-        headers.put("SCHEDULER_DESTINATION", job.getDestinationTopic());
+        headers.put("scheduler_job_state", job.getState().name());
+        headers.put("scheduler_destination", job.getDestinationTopic());
 
         if (job.getRunAt() != null) {
-            headers.put("SCHEDULER_FIRE_AT", job.getRunAt().toString());
+            headers.put("scheduler_fire_at", job.getRunAt().toString());
         }
         if (job.getEffectiveRunAt() != null) {
-            headers.put("SCHEDULER_EFFECTIVE_FIRE_AT", job.getEffectiveRunAt().toString());
+            headers.put("scheduler_effective_fire_at", job.getEffectiveRunAt().toString());
         }
         if (job.getPredecessorId() != null) {
-            headers.put("SCHEDULER_PREDECESSOR_ID", job.getPredecessorId().toString());
+            headers.put("scheduler_predecessor_id", job.getPredecessorId().toString());
         }
         if (job.getLastError() != null) {
-            headers.put("SCHEDULER_ERROR", job.getLastError());
+            headers.put("scheduler_error", job.getLastError());
         }
 
-        headers.put("SCHEDULER_RETRY_COUNT", String.valueOf(job.getRetryCount()));
-        headers.put("SCHEDULER_MAX_RETRIES", String.valueOf(job.getMaxRetries()));
+        headers.put("scheduler_retry_count", String.valueOf(job.getRetryCount()));
+        headers.put("scheduler_max_retries", String.valueOf(job.getMaxRetries()));
 
         // Include filtered original headers
         addFilteredHeaders(job, headers);
@@ -93,8 +93,8 @@ public class AdvisoryService {
 
         for (Map.Entry<String, String> entry : job.getHeaders().entrySet()) {
             String headerName = entry.getKey();
-            // Skip SCHEDULER_ headers - they're internal
-            if (headerName.startsWith("SCHEDULER_")) {
+            // Skip scheduler_ headers (case-insensitive) - they are internal
+            if (headerName.toLowerCase().startsWith("scheduler_")) {
                 continue;
             }
             if (pattern.matcher(headerName).matches()) {

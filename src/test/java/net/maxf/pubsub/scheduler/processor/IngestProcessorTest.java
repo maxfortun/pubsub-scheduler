@@ -56,19 +56,19 @@ class IngestProcessorTest {
 
         @Test
         void blankDestination_throwsException() {
-            message.setHeader("SCHEDULER_DESTINATION", "   ");
+            message.setHeader("scheduler_destination", "   ");
             assertThrows(IllegalArgumentException.class, () -> processor.process(exchange));
         }
 
         @Test
         void emptyDestination_throwsException() {
-            message.setHeader("SCHEDULER_DESTINATION", "");
+            message.setHeader("scheduler_destination", "");
             assertThrows(IllegalArgumentException.class, () -> processor.process(exchange));
         }
 
         @Test
         void validDestination_setsDestinationTopic() throws Exception {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
 
             processor.process(exchange);
 
@@ -82,7 +82,7 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
@@ -102,7 +102,7 @@ class IngestProcessorTest {
         @Test
         void schedulerAt_parsesInstantAndSetsFireAt() throws Exception {
             Instant targetTime = Instant.now().plus(1, ChronoUnit.HOURS);
-            message.setHeader("SCHEDULER_AT", targetTime.toString());
+            message.setHeader("scheduler_at", targetTime.toString());
 
             processor.process(exchange);
 
@@ -112,7 +112,7 @@ class IngestProcessorTest {
 
         @Test
         void schedulerSleep_calculatesFireAtFromNow() throws Exception {
-            message.setHeader("SCHEDULER_WAIT", "PT30M");
+            message.setHeader("scheduler_wait", "PT30M");
             Instant before = Instant.now().plus(30, ChronoUnit.MINUTES);
 
             processor.process(exchange);
@@ -127,7 +127,7 @@ class IngestProcessorTest {
 
         @Test
         void schedulerSleep_variousDurationFormats() throws Exception {
-            message.setHeader("SCHEDULER_WAIT", "PT1H30M15S");
+            message.setHeader("scheduler_wait", "PT1H30M15S");
 
             processor.process(exchange);
 
@@ -137,7 +137,7 @@ class IngestProcessorTest {
 
         @Test
         void schedulerCron_setsFireAtToNextExecution() throws Exception {
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *"); // daily at midnight
+            message.setHeader("scheduler_cron", "0 0 * * *"); // daily at midnight
             Instant before = Instant.now();
 
             processor.process(exchange);
@@ -151,7 +151,7 @@ class IngestProcessorTest {
 
         @Test
         void schedulerCron_everyMinute_schedulesWithinMinute() throws Exception {
-            message.setHeader("SCHEDULER_CRON", "* * * * *"); // every minute
+            message.setHeader("scheduler_cron", "* * * * *"); // every minute
             Instant before = Instant.now();
 
             processor.process(exchange);
@@ -164,8 +164,8 @@ class IngestProcessorTest {
 
         @Test
         void multipleTimingHeaders_atAndSleep_throwsException() {
-            message.setHeader("SCHEDULER_AT", Instant.now().toString());
-            message.setHeader("SCHEDULER_WAIT", "PT1H");
+            message.setHeader("scheduler_at", Instant.now().toString());
+            message.setHeader("scheduler_wait", "PT1H");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> processor.process(exchange));
@@ -174,8 +174,8 @@ class IngestProcessorTest {
 
         @Test
         void multipleTimingHeaders_atAndCron_throwsException() {
-            message.setHeader("SCHEDULER_AT", Instant.now().toString());
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
+            message.setHeader("scheduler_at", Instant.now().toString());
+            message.setHeader("scheduler_cron", "0 0 * * *");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> processor.process(exchange));
@@ -184,8 +184,8 @@ class IngestProcessorTest {
 
         @Test
         void multipleTimingHeaders_sleepAndCron_throwsException() {
-            message.setHeader("SCHEDULER_WAIT", "PT1H");
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
+            message.setHeader("scheduler_wait", "PT1H");
+            message.setHeader("scheduler_cron", "0 0 * * *");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> processor.process(exchange));
@@ -194,9 +194,9 @@ class IngestProcessorTest {
 
         @Test
         void allThreeTimingHeaders_throwsException() {
-            message.setHeader("SCHEDULER_AT", Instant.now().toString());
-            message.setHeader("SCHEDULER_WAIT", "PT1H");
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
+            message.setHeader("scheduler_at", Instant.now().toString());
+            message.setHeader("scheduler_wait", "PT1H");
+            message.setHeader("scheduler_cron", "0 0 * * *");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> processor.process(exchange));
@@ -209,14 +209,14 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void cronUntil_setsCronEndTime() throws Exception {
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
+            message.setHeader("scheduler_cron", "0 0 * * *");
             Instant endTime = Instant.now().plus(30, ChronoUnit.DAYS);
-            message.setHeader("SCHEDULER_CRON_UNTIL", endTime.toString());
+            message.setHeader("scheduler_cron_until", endTime.toString());
 
             processor.process(exchange);
 
@@ -228,8 +228,8 @@ class IngestProcessorTest {
 
         @Test
         void cronCount_setsCronMaxCount() throws Exception {
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
-            message.setHeader("SCHEDULER_CRON_REPEAT", 5);
+            message.setHeader("scheduler_cron", "0 0 * * *");
+            message.setHeader("scheduler_cron_repeat", 5);
 
             processor.process(exchange);
 
@@ -241,13 +241,13 @@ class IngestProcessorTest {
 
         @Test
         void cronUntilAndCronCount_bothPresent_throwsException() {
-            message.setHeader("SCHEDULER_CRON", "0 0 * * *");
-            message.setHeader("SCHEDULER_CRON_UNTIL", Instant.now().plus(30, ChronoUnit.DAYS).toString());
-            message.setHeader("SCHEDULER_CRON_REPEAT", 5);
+            message.setHeader("scheduler_cron", "0 0 * * *");
+            message.setHeader("scheduler_cron_until", Instant.now().plus(30, ChronoUnit.DAYS).toString());
+            message.setHeader("scheduler_cron_repeat", 5);
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> processor.process(exchange));
-            assertTrue(ex.getMessage().contains("SCHEDULER_CRON_UNTIL and SCHEDULER_CRON_REPEAT are mutually exclusive"));
+            assertTrue(ex.getMessage().contains("scheduler_cron_until and scheduler_cron_repeat are mutually exclusive"));
         }
     }
 
@@ -256,13 +256,13 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
-            message.setHeader("SCHEDULER_WAIT", "PT1H");
+            message.setHeader("scheduler_destination", "output-topic");
+            message.setHeader("scheduler_wait", "PT1H");
         }
 
         @Test
         void waitStartSelf_setsWaitStartToSelf() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_START", "SELF");
+            message.setHeader("scheduler_wait_start", "SELF");
 
             processor.process(exchange);
 
@@ -272,7 +272,7 @@ class IngestProcessorTest {
 
         @Test
         void waitStartPrev_setsWaitStartToPrev() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_START", "PREV");
+            message.setHeader("scheduler_wait_start", "PREV");
 
             processor.process(exchange);
 
@@ -282,7 +282,7 @@ class IngestProcessorTest {
 
         @Test
         void waitStartLowercase_caseInsensitive() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_START", "prev");
+            message.setHeader("scheduler_wait_start", "prev");
 
             processor.process(exchange);
 
@@ -292,7 +292,7 @@ class IngestProcessorTest {
 
         @Test
         void waitStartMixedCase_caseInsensitive() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_START", "Self");
+            message.setHeader("scheduler_wait_start", "Self");
 
             processor.process(exchange);
 
@@ -302,7 +302,7 @@ class IngestProcessorTest {
 
         @Test
         void waitRepeat_setsSleepRepeatCount() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_REPEAT", 5);
+            message.setHeader("scheduler_wait_repeat", 5);
 
             processor.process(exchange);
 
@@ -312,8 +312,8 @@ class IngestProcessorTest {
 
         @Test
         void waitRepeatWithWaitStart_bothSet() throws Exception {
-            message.setHeader("SCHEDULER_WAIT_START", "PREV");
-            message.setHeader("SCHEDULER_WAIT_REPEAT", 3);
+            message.setHeader("scheduler_wait_start", "PREV");
+            message.setHeader("scheduler_wait_repeat", 3);
 
             processor.process(exchange);
 
@@ -345,12 +345,12 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void schedulerKey_setsJobKey() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
+            message.setHeader("scheduler_key", "order-123");
 
             processor.process(exchange);
 
@@ -368,8 +368,8 @@ class IngestProcessorTest {
 
         @Test
         void keyPolicyQueue_setsKeyPolicyToQueue() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "QUEUE");
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "QUEUE");
 
             processor.process(exchange);
 
@@ -379,8 +379,8 @@ class IngestProcessorTest {
 
         @Test
         void keyPolicyReplace_setsKeyPolicyToReplace() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "REPLACE");
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "REPLACE");
 
             processor.process(exchange);
 
@@ -390,8 +390,8 @@ class IngestProcessorTest {
 
         @Test
         void keyPolicySkip_setsKeyPolicyToSkip() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "SKIP");
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "SKIP");
 
             processor.process(exchange);
 
@@ -401,8 +401,8 @@ class IngestProcessorTest {
 
         @Test
         void keyPolicyLowercase_caseInsensitive() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "replace");
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "replace");
 
             processor.process(exchange);
 
@@ -412,8 +412,8 @@ class IngestProcessorTest {
 
         @Test
         void keyPolicyMixedCase_caseInsensitive() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "Skip");
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "Skip");
 
             processor.process(exchange);
 
@@ -423,7 +423,7 @@ class IngestProcessorTest {
 
         @Test
         void noKeyPolicy_defaultsToQueue() throws Exception {
-            message.setHeader("SCHEDULER_KEY", "order-123");
+            message.setHeader("scheduler_key", "order-123");
 
             processor.process(exchange);
 
@@ -437,12 +437,12 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void retryCount_setsMaxRetries() throws Exception {
-            message.setHeader("SCHEDULER_RETRY_COUNT", 10);
+            message.setHeader("scheduler_retry_count", 10);
 
             processor.process(exchange);
 
@@ -452,7 +452,7 @@ class IngestProcessorTest {
 
         @Test
         void retryCountZero_allowsZeroRetries() throws Exception {
-            message.setHeader("SCHEDULER_RETRY_COUNT", 0);
+            message.setHeader("scheduler_retry_count", 0);
 
             processor.process(exchange);
 
@@ -474,12 +474,12 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void advisoryHeadersPattern_setsPattern() throws Exception {
-            message.setHeader("SCHEDULER_ADVISORY_HEADERS", "X-.*|Custom-.*");
+            message.setHeader("scheduler_advisory_headers", "X-.*|Custom-.*");
 
             processor.process(exchange);
 
@@ -501,36 +501,36 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void nonSchedulerHeaders_preserved() throws Exception {
-            message.setHeader("X-Custom-Header", "custom-value");
-            message.setHeader("Content-Type", "application/json");
+            message.setHeader("x-custom-header", "custom-value");
+            message.setHeader("content-type", "application/json");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             var headers = jobCaptor.getValue().getHeaders();
-            assertEquals("custom-value", headers.get("X-Custom-Header"));
-            assertEquals("application/json", headers.get("Content-Type"));
+            assertEquals("custom-value", headers.get("x-custom-header"));
+            assertEquals("application/json", headers.get("content-type"));
         }
 
         @Test
         void schedulerHeaders_notPreserved() throws Exception {
-            message.setHeader("SCHEDULER_AT", Instant.now().plus(1, ChronoUnit.HOURS).toString());
-            message.setHeader("SCHEDULER_KEY", "my-key");
-            message.setHeader("X-Custom-Header", "custom-value");
+            message.setHeader("scheduler_at", Instant.now().plus(1, ChronoUnit.HOURS).toString());
+            message.setHeader("scheduler_key", "my-key");
+            message.setHeader("x-custom-header", "custom-value");
 
             processor.process(exchange);
 
             verify(jobStore).handleIncomingJob(jobCaptor.capture());
             var headers = jobCaptor.getValue().getHeaders();
-            assertFalse(headers.containsKey("SCHEDULER_AT"));
-            assertFalse(headers.containsKey("SCHEDULER_KEY"));
-            assertFalse(headers.containsKey("SCHEDULER_DESTINATION"));
-            assertTrue(headers.containsKey("X-Custom-Header"));
+            assertFalse(headers.containsKey("scheduler_at"));
+            assertFalse(headers.containsKey("scheduler_key"));
+            assertFalse(headers.containsKey("scheduler_destination"));
+            assertTrue(headers.containsKey("x-custom-header"));
         }
 
         @Test
@@ -554,7 +554,7 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
@@ -603,13 +603,13 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void effectiveRunAt_sameAsFireAt() throws Exception {
             Instant targetTime = Instant.now().plus(1, ChronoUnit.HOURS);
-            message.setHeader("SCHEDULER_AT", targetTime.toString());
+            message.setHeader("scheduler_at", targetTime.toString());
 
             processor.process(exchange);
 
@@ -624,34 +624,34 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
         void invalidAtFormat_throwsException() {
-            message.setHeader("SCHEDULER_AT", "invalid-timestamp");
+            message.setHeader("scheduler_at", "invalid-timestamp");
 
             assertThrows(Exception.class, () -> processor.process(exchange));
         }
 
         @Test
         void invalidSleepFormat_throwsException() {
-            message.setHeader("SCHEDULER_WAIT", "invalid-duration");
+            message.setHeader("scheduler_wait", "invalid-duration");
 
             assertThrows(Exception.class, () -> processor.process(exchange));
         }
 
         @Test
         void invalidWaitStart_throwsException() {
-            message.setHeader("SCHEDULER_WAIT", "PT1H");
-            message.setHeader("SCHEDULER_WAIT_START", "INVALID");
+            message.setHeader("scheduler_wait", "PT1H");
+            message.setHeader("scheduler_wait_start", "INVALID");
 
             assertThrows(IllegalArgumentException.class, () -> processor.process(exchange));
         }
 
         @Test
         void invalidKeyPolicy_throwsException() {
-            message.setHeader("SCHEDULER_KEY_POLICY", "INVALID");
+            message.setHeader("scheduler_key_policy", "INVALID");
 
             assertThrows(IllegalArgumentException.class, () -> processor.process(exchange));
         }
@@ -662,7 +662,7 @@ class IngestProcessorTest {
 
         @BeforeEach
         void setRequiredHeaders() {
-            message.setHeader("SCHEDULER_DESTINATION", "output-topic");
+            message.setHeader("scheduler_destination", "output-topic");
         }
 
         @Test
@@ -671,13 +671,13 @@ class IngestProcessorTest {
             byte[] key = "msg-key".getBytes();
             byte[] body = "{\"order\": 123}".getBytes();
 
-            message.setHeader("SCHEDULER_AT", targetTime.toString());
-            message.setHeader("SCHEDULER_KEY", "order-123");
-            message.setHeader("SCHEDULER_KEY_POLICY", "REPLACE");
-            message.setHeader("SCHEDULER_RETRY_COUNT", 5);
-            message.setHeader("SCHEDULER_ADVISORY_HEADERS", "X-.*");
+            message.setHeader("scheduler_at", targetTime.toString());
+            message.setHeader("scheduler_key", "order-123");
+            message.setHeader("scheduler_key_policy", "REPLACE");
+            message.setHeader("scheduler_retry_count", 5);
+            message.setHeader("scheduler_advisory_headers", "X-.*");
             message.setHeader("kafka.KEY", key);
-            message.setHeader("X-Correlation-Id", "corr-456");
+            message.setHeader("x-correlation-id", "corr-456");
             message.setBody(body);
 
             processor.process(exchange);
@@ -693,17 +693,17 @@ class IngestProcessorTest {
             assertEquals("X-.*", job.getAdvisoryHeadersPattern());
             assertArrayEquals(key, job.getMessageKey());
             assertArrayEquals(body, job.getMessageValue());
-            assertEquals("corr-456", job.getHeaders().get("X-Correlation-Id"));
-            assertFalse(job.getHeaders().containsKey("SCHEDULER_AT"));
+            assertEquals("corr-456", job.getHeaders().get("x-correlation-id"));
+            assertFalse(job.getHeaders().containsKey("scheduler_at"));
         }
 
         @Test
         void sleepWithRepeat_allSleepOptionsSet() throws Exception {
-            message.setHeader("SCHEDULER_WAIT", "PT15M");
-            message.setHeader("SCHEDULER_WAIT_START", "PREV");
-            message.setHeader("SCHEDULER_WAIT_REPEAT", 10);
-            message.setHeader("SCHEDULER_KEY", "batch-job");
-            message.setHeader("SCHEDULER_KEY_POLICY", "QUEUE");
+            message.setHeader("scheduler_wait", "PT15M");
+            message.setHeader("scheduler_wait_start", "PREV");
+            message.setHeader("scheduler_wait_repeat", 10);
+            message.setHeader("scheduler_key", "batch-job");
+            message.setHeader("scheduler_key_policy", "QUEUE");
 
             processor.process(exchange);
 

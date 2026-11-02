@@ -8,7 +8,7 @@ In the world of pub/sub, sometimes messages need to be delayed. "Send this email
 
 Some brokers, like ActiveMQ, have scheduling baked in — set `AMQ_SCHEDULED_DELAY` and you're done. But what if you're on Kafka? What if you're migrating between brokers and don't want to rewrite your scheduling logic? What if ActiveMQ's scheduling isn't quite enough — you need job ordering, lifecycle events, or a way to cancel jobs mid-flight?
 
-PubSub Scheduler is a broker-neutral implementation of delayed and scheduled message delivery. It sits between your producers and your messaging infrastructure, accepting messages with `SCHEDULER_*` headers and delivering them to any destination topic at the right time. Built on Apache Camel, it works with Kafka, ActiveMQ, RabbitMQ, and dozens of other transports out of the box. The same scheduling semantics, everywhere.
+PubSub Scheduler is a broker-neutral implementation of delayed and scheduled message delivery. It sits between your producers and your messaging infrastructure, accepting messages with `scheduler_*` headers and delivering them to any destination topic at the right time. Built on Apache Camel, it works with Kafka, ActiveMQ, RabbitMQ, and dozens of other transports out of the box. The same scheduling semantics, everywhere.
 
 It's designed for production: CockroachDB-backed persistence for multi-region deployments, Kubernetes-native with blue/green HA, push-based timing (no polling), and a REST API for operational control. When things go wrong, you get advisory events, dead-letter queues, and configurable retry policies.
 
@@ -16,13 +16,13 @@ It's designed for production: CockroachDB-backed persistence for multi-region de
 
 | Feature | ActiveMQ | PubSub Scheduler |
 |---------|----------|------------------|
-| Delay | `AMQ_SCHEDULED_DELAY` (ms) | `SCHEDULER_WAIT` (ISO 8601 duration) |
-| Absolute time | Not supported | `SCHEDULER_AT` |
-| Cron | `AMQ_SCHEDULED_CRON` | `SCHEDULER_CRON` |
-| Repeat | `AMQ_SCHEDULED_REPEAT` | `SCHEDULER_WAIT_REPEAT` |
-| Period | `AMQ_SCHEDULED_PERIOD` | `SCHEDULER_WAIT` (with `WAIT_REPEAT`) |
-| Key-based ordering | Not supported | `SCHEDULER_KEY` + `SCHEDULER_KEY_POLICY` |
-| Prevent concurrent runs | Not supported | `SCHEDULER_CRON_CONCURRENT=false` |
+| Delay | `AMQ_SCHEDULED_DELAY` (ms) | `scheduler_wait` (ISO 8601 duration) |
+| Absolute time | Not supported | `scheduler_at` |
+| Cron | `AMQ_SCHEDULED_CRON` | `scheduler_cron` |
+| Repeat | `AMQ_SCHEDULED_REPEAT` | `scheduler_wait_repeat` |
+| Period | `AMQ_SCHEDULED_PERIOD` | `scheduler_wait` (with `WAIT_REPEAT`) |
+| Key-based ordering | Not supported | `scheduler_key` + `scheduler_key_policy` |
+| Prevent concurrent runs | Not supported | `scheduler_cron_concurrent=false` |
 | Min gap between runs | Not supported | `SCHEDULER_CRON_GAP_MIN` |
 | Misfire handling | Not supported | `SCHEDULER_CRON_MISFIRE_POLICY` |
 | Lifecycle events | Not supported | Full advisory topic |
@@ -220,26 +220,26 @@ Build and run the scheduler in Docker, then test the API endpoints:
 
 ## Usage
 
-Publish a message to `scheduler.in` with `SCHEDULER_*` headers:
+Publish a message to `scheduler.in` with `scheduler_*` headers:
 
 ```
-SCHEDULER_DESTINATION: orders.process
-SCHEDULER_WAIT: PT5M
+scheduler_destination: orders.process
+scheduler_wait: PT5M
 ```
 
 The scheduler will deliver the message to `orders.process` after 5 minutes.
 
 ## Headers
 
-All headers are prefixed with `SCHEDULER_`.
+All headers are prefixed with `scheduler_`.
 
 ### Timing (mutually exclusive)
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_AT` | Absolute fire time (ISO 8601) | `2026-07-22T15:00:00Z` |
-| `SCHEDULER_WAIT` | Relative delay (ISO 8601 duration) | `PT5M`, `PT1H30M` |
-| `SCHEDULER_CRON` | Cron expression for recurring jobs | `0 9 * * *` |
+| `scheduler_at` | Absolute fire time (ISO 8601) | `2026-07-22T15:00:00Z` |
+| `scheduler_wait` | Relative delay (ISO 8601 duration) | `PT5M`, `PT1H30M` |
+| `scheduler_cron` | Cron expression for recurring jobs | `0 9 * * *` |
 
 If none specified, fires immediately.
 
@@ -247,14 +247,14 @@ If none specified, fires immediately.
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_DESTINATION` | Target topic for fired message | `orders.process` |
+| `scheduler_destination` | Target topic for fired message | `orders.process` |
 
 ### Key-Based Ordering
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_KEY` | Job key for ordering/grouping | `order-123` |
-| `SCHEDULER_KEY_POLICY` | Behavior when key exists (default: `QUEUE`) | `QUEUE`, `REPLACE`, `SKIP` |
+| `scheduler_key` | Job key for ordering/grouping | `order-123` |
+| `scheduler_key_policy` | Behavior when key exists (default: `QUEUE`) | `QUEUE`, `REPLACE`, `SKIP` |
 
 **Key Policies:**
 
@@ -268,35 +268,35 @@ If none specified, fires immediately.
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_WAIT_START` | Reference point for sleep (default: `SELF`) | `SELF`, `PREV` |
-| `SCHEDULER_WAIT_REPEAT` | Number of times to repeat (default: 1, one-shot) | `10`, `-1` (infinite) |
+| `scheduler_wait_start` | Reference point for sleep (default: `SELF`) | `SELF`, `PREV` |
+| `scheduler_wait_repeat` | Number of times to repeat (default: 1, one-shot) | `10`, `-1` (infinite) |
 
 **Wait Start:**
 
 | Value | Behavior |
 |-------|----------|
 | `SELF` | Wait from this job's arrival time |
-| `PREV` | Wait from predecessor's completion (requires `SCHEDULER_KEY` with `QUEUE` policy) |
+| `PREV` | Wait from predecessor's completion (requires `scheduler_key` with `QUEUE` policy) |
 
 **Example: Repeat every 5 minutes, 10 times**
 ```
-SCHEDULER_DESTINATION: health.check
-SCHEDULER_WAIT: PT5M
-SCHEDULER_WAIT_REPEAT: 10
+scheduler_destination: health.check
+scheduler_wait: PT5M
+scheduler_wait_repeat: 10
 ```
 
 ### Cron Options
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_CRON_CONCURRENT` | Allow overlapping executions (default: `false`) | `true`, `false` |
+| `scheduler_cron_concurrent` | Allow overlapping executions (default: `false`) | `true`, `false` |
 | `SCHEDULER_CRON_GAP_MIN` | Minimum delay between completions (ISO 8601 duration) | `PT10M` |
 | `SCHEDULER_CRON_GAP_POLICY` | Behavior when gap not met (default: `DELAY`) | `DELAY`, `SKIP` |
 | `SCHEDULER_CRON_MISFIRE_POLICY` | Behavior on missed execution (default: `SKIP`) | `SKIP`, `CATCH_UP` |
-| `SCHEDULER_CRON_UNTIL` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
-| `SCHEDULER_CRON_REPEAT` | Max number of executions* | `100` |
+| `scheduler_cron_until` | End date for recurring job (ISO 8601)* | `2026-12-31T23:59:59Z` |
+| `scheduler_cron_repeat` | Max number of executions* | `100` |
 
-*`SCHEDULER_CRON_UNTIL` and `SCHEDULER_CRON_REPEAT` are mutually exclusive.
+*`scheduler_cron_until` and `scheduler_cron_repeat` are mutually exclusive.
 
 **Cron Gap Policies:**
 
@@ -314,29 +314,29 @@ SCHEDULER_WAIT_REPEAT: 10
 
 **Example: Daily job ending on a specific date**
 ```
-SCHEDULER_DESTINATION: reports.daily
-SCHEDULER_CRON: 0 9 * * *
-SCHEDULER_CRON_UNTIL: 2026-12-31T23:59:59Z
+scheduler_destination: reports.daily
+scheduler_cron: 0 9 * * *
+scheduler_cron_until: 2026-12-31T23:59:59Z
 ```
 
 **Example: Daily job limited to 30 executions**
 ```
-SCHEDULER_DESTINATION: trial.reminder
-SCHEDULER_CRON: 0 9 * * *
-SCHEDULER_CRON_REPEAT: 30
+scheduler_destination: trial.reminder
+scheduler_cron: 0 9 * * *
+scheduler_cron_repeat: 30
 ```
 
 ### Retry & Error Handling
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_RETRY_COUNT` | Max retry attempts (default: 3) | `5` |
+| `scheduler_retry_count` | Max retry attempts (default: 3) | `5` |
 
 ### Advisory Events
 
 | Header | Description | Example |
 |--------|-------------|---------|
-| `SCHEDULER_ADVISORY_HEADERS` | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
+| `scheduler_advisory_headers` | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
 
 ## Topics
 
@@ -450,49 +450,49 @@ To add a new transform type (e.g., `s3`, `redis`), implement `MessageTransformer
 ### One-shot delayed message
 
 ```
-SCHEDULER_DESTINATION: notifications.email
-SCHEDULER_WAIT: PT1H
+scheduler_destination: notifications.email
+scheduler_wait: PT1H
 ```
 
 ### Scheduled at specific time
 
 ```
-SCHEDULER_DESTINATION: reports.generate
-SCHEDULER_AT: 2026-07-23T09:00:00Z
+scheduler_destination: reports.generate
+scheduler_at: 2026-07-23T09:00:00Z
 ```
 
 ### Daily cron job
 
 ```
-SCHEDULER_DESTINATION: cleanup.expired
-SCHEDULER_CRON: 0 3 * * *
-SCHEDULER_CRON_CONCURRENT: false
+scheduler_destination: cleanup.expired
+scheduler_cron: 0 3 * * *
+scheduler_cron_concurrent: false
 ```
 
 ### Ordered job queue
 
 ```
-SCHEDULER_DESTINATION: orders.process
-SCHEDULER_KEY: customer-456
-SCHEDULER_KEY_POLICY: QUEUE
-SCHEDULER_WAIT: PT0S
+scheduler_destination: orders.process
+scheduler_key: customer-456
+scheduler_key_policy: QUEUE
+scheduler_wait: PT0S
 ```
 
 ### Replace pending job
 
 ```
-SCHEDULER_DESTINATION: cache.refresh
-SCHEDULER_KEY: product-789
-SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_WAIT: PT30S
+scheduler_destination: cache.refresh
+scheduler_key: product-789
+scheduler_key_policy: REPLACE
+scheduler_wait: PT30S
 ```
 
 ### Rate-limited cron with minimum gap
 
 ```
-SCHEDULER_DESTINATION: api.sync
-SCHEDULER_CRON: */5 * * * *
-SCHEDULER_CRON_CONCURRENT: false
+scheduler_destination: api.sync
+scheduler_cron: */5 * * * *
+scheduler_cron_concurrent: false
 SCHEDULER_CRON_GAP_MIN: PT3M
 SCHEDULER_CRON_GAP_POLICY: DELAY
 ```

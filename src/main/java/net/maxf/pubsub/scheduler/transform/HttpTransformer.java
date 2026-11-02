@@ -54,7 +54,7 @@ public class HttpTransformer implements MessageTransformer {
                     .timeout(Duration.ofMillis(readTimeoutMs));
 
             if (authorization != null) {
-                builder.header("Authorization", authorization);
+                builder.header("authorization", authorization);
             }
 
             byte[] payload = job.getMessageValue();

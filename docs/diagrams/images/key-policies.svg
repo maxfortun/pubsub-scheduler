@@ -10,7 +10,7 @@
     .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
   </style>
   <text x="500" y="43.8" font-size="28" fill="#1e1e1e" text-anchor="middle" >Key Policies: QUEUE, REPLACE, SKIP</text>
-  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >When multiple jobs share the same SCHEDULER_KEY, the KEY_POLICY determines behavior:</text>
+  <text x="50" y="71.9" font-size="14" fill="#495057" text-anchor="start" >When multiple jobs share the same scheduler_key, the KEY_POLICY determines behavior:</text>
   <rect x="50" y="100" width="900" height="180" fill="#ebfbee" stroke="#2f9e44" stroke-width="1" rx="8" />
   <text x="60" y="125.3" font-size="18" fill="#2f9e44" text-anchor="start" >QUEUE (Default) - Chain Jobs</text>
   <text x="60" y="150.2" font-size="12" fill="#1e1e1e" text-anchor="start" >Jobs with same key execute in order.</text>

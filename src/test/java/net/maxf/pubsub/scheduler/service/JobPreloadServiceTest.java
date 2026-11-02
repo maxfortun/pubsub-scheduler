@@ -106,14 +106,14 @@ class JobPreloadServiceTest {
                   "destination": "topic",
                   "waitDuration": "PT1H",
                   "waitRepeat": 0,
-                  "headers": {"SCHEDULER_CRON": "0 0 * * *"}
+                  "headers": {"scheduler_cron": "0 0 * * *"}
                 }]
                 """;
 
             JobPreloadService.JobDefinition def = parseFirstDefinition(json);
 
             assertEquals("cron-job", def.jobKey());
-            assertEquals("0 0 * * *", def.headers().get("SCHEDULER_CRON"));
+            assertEquals("0 0 * * *", def.headers().get("scheduler_cron"));
         }
 
         @Test

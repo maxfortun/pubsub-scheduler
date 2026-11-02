@@ -33,20 +33,20 @@ public class IngestProcessor implements Processor {
 
     private static final Logger LOG = Logger.getLogger(IngestProcessor.class);
 
-    private static final String HEADER_PREFIX = "SCHEDULER_";
-    private static final String HEADER_AT = HEADER_PREFIX + "AT";
-    private static final String HEADER_WAIT = HEADER_PREFIX + "WAIT";
-    private static final String HEADER_CRON = HEADER_PREFIX + "CRON";
-    private static final String HEADER_WAIT_START = HEADER_PREFIX + "WAIT_START";
-    private static final String HEADER_WAIT_REPEAT = HEADER_PREFIX + "WAIT_REPEAT";
-    private static final String HEADER_WAIT_UNTIL = HEADER_PREFIX + "WAIT_UNTIL";
-    private static final String HEADER_DESTINATION = HEADER_PREFIX + "DESTINATION";
-    private static final String HEADER_KEY = HEADER_PREFIX + "KEY";
-    private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "KEY_POLICY";
-    private static final String HEADER_RETRY_COUNT = HEADER_PREFIX + "RETRY_COUNT";
-    private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "ADVISORY_HEADERS";
-    private static final String HEADER_CRON_UNTIL = HEADER_PREFIX + "CRON_UNTIL";
-    private static final String HEADER_CRON_REPEAT = HEADER_PREFIX + "CRON_REPEAT";
+    private static final String HEADER_PREFIX = "scheduler_";
+    private static final String HEADER_AT = HEADER_PREFIX + "at";
+    private static final String HEADER_WAIT = HEADER_PREFIX + "wait";
+    private static final String HEADER_CRON = HEADER_PREFIX + "cron";
+    private static final String HEADER_WAIT_START = HEADER_PREFIX + "wait_start";
+    private static final String HEADER_WAIT_REPEAT = HEADER_PREFIX + "wait_repeat";
+    private static final String HEADER_WAIT_UNTIL = HEADER_PREFIX + "wait_until";
+    private static final String HEADER_DESTINATION = HEADER_PREFIX + "destination";
+    private static final String HEADER_KEY = HEADER_PREFIX + "key";
+    private static final String HEADER_KEY_POLICY = HEADER_PREFIX + "key_policy";
+    private static final String HEADER_RETRY_COUNT = HEADER_PREFIX + "retry_count";
+    private static final String HEADER_ADVISORY_HEADERS = HEADER_PREFIX + "advisory_headers";
+    private static final String HEADER_CRON_UNTIL = HEADER_PREFIX + "cron_until";
+    private static final String HEADER_CRON_REPEAT = HEADER_PREFIX + "cron_repeat";
 
     @Inject
     JobStoreService jobStore;
@@ -77,7 +77,7 @@ public class IngestProcessor implements Processor {
 
         int timingCount = (atStr != null ? 1 : 0) + (waitStr != null ? 1 : 0) + (cronStr != null ? 1 : 0);
         if (timingCount > 1) {
-            throw new IllegalArgumentException("SCHEDULER_AT, SCHEDULER_WAIT, and SCHEDULER_CRON are mutually exclusive");
+            throw new IllegalArgumentException("scheduler_at, scheduler_wait, and scheduler_cron are mutually exclusive");
         }
 
         if (atStr != null) {
@@ -97,7 +97,7 @@ public class IngestProcessor implements Processor {
             String cronUntilStr = message.getHeader(HEADER_CRON_UNTIL, String.class);
             Integer cronRepeat = message.getHeader(HEADER_CRON_REPEAT, Integer.class);
             if (cronUntilStr != null && cronRepeat != null) {
-                throw new IllegalArgumentException("SCHEDULER_CRON_UNTIL and SCHEDULER_CRON_REPEAT are mutually exclusive");
+                throw new IllegalArgumentException("scheduler_cron_until and scheduler_cron_repeat are mutually exclusive");
             }
 
             job.setCronExpression(cronStr);
@@ -147,7 +147,7 @@ public class IngestProcessor implements Processor {
         for (Map.Entry<String, Object> entry : message.getHeaders().entrySet()) {
             String key = entry.getKey();
             String keyLower = key.toLowerCase();
-            if (!key.startsWith(HEADER_PREFIX) && !keyLower.startsWith("kafka.") && !keyLower.startsWith("camel")) {
+            if (!keyLower.startsWith(HEADER_PREFIX) && !keyLower.startsWith("kafka.") && !keyLower.startsWith("camel")) {
                 Object value = entry.getValue();
                 if (value instanceof String) {
                     headers.put(key, (String) value);

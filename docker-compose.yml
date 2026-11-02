@@ -202,7 +202,7 @@ services:
         # Test 1: Immediate job
         echo ""
         echo "Test 1: Immediate job (no delay)"
-        printf '%s\n' 'SCHEDULER_DESTINATION:test.destination|{"test": "immediate"}' | /opt/kafka/bin/kafka-console-producer.sh \
+        printf '%s\n' 'scheduler_destination:test.destination|{"test": "immediate"}' | /opt/kafka/bin/kafka-console-producer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
           --property parse.headers=true \
@@ -223,7 +223,7 @@ services:
         # Test 2: Delayed job (5 seconds)
         echo ""
         echo "Test 2: Delayed job (5 seconds)"
-        printf '%s\n' 'SCHEDULER_DESTINATION:test.destination,SCHEDULER_SLEEP:PT5S|{"test": "delayed"}' | /opt/kafka/bin/kafka-console-producer.sh \
+        printf '%s\n' 'scheduler_destination:test.destination,scheduler_sleep:PT5S|{"test": "delayed"}' | /opt/kafka/bin/kafka-console-producer.sh \
           --bootstrap-server kafka:9092 \
           --topic scheduler.in \
           --property parse.headers=true \

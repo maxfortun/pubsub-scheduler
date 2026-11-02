@@ -42,21 +42,21 @@ A distributed, pub/sub-agnostic message scheduler. Producers publish messages wi
 
 ## Headers
 
-All scheduler headers are prefixed with `SCHEDULER_`:
+All scheduler headers are prefixed with `scheduler_`:
 
 | Header | Required | Description | Example |
 |--------|----------|-------------|---------|
-| `SCHEDULER_DESTINATION` | Yes | Target topic for fired message | `orders.process` |
-| `SCHEDULER_AT` | No* | Absolute fire time (ISO 8601) — like `at` command | `2026-07-22T15:00:00Z` |
-| `SCHEDULER_WAIT` | No* | Relative delay (ISO 8601 duration) — like `sleep` command | `PT5M` |
-| `SCHEDULER_CRON` | No* | Cron expression for recurring jobs — like `cron` | `0 9 * * *` |
-| `SCHEDULER_WAIT_START` | No | Reference for wait: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
-| `SCHEDULER_KEY` | No | Job key for ordering | `order-123` |
-| `SCHEDULER_KEY_POLICY` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
-| `SCHEDULER_RETRY_COUNT` | No | Max retries (overrides global default) | `3` |
-| `SCHEDULER_ADVISORY_HEADERS` | No | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
+| `scheduler_destination` | Yes | Target topic for fired message | `orders.process` |
+| `scheduler_at` | No* | Absolute fire time (ISO 8601) — like `at` command | `2026-07-22T15:00:00Z` |
+| `scheduler_wait` | No* | Relative delay (ISO 8601 duration) — like `sleep` command | `PT5M` |
+| `scheduler_cron` | No* | Cron expression for recurring jobs — like `cron` | `0 9 * * *` |
+| `scheduler_wait_start` | No | Reference for wait: `SELF` (arrival, default) or `PREV` (predecessor completion) | `SELF` |
+| `scheduler_key` | No | Job key for ordering | `order-123` |
+| `scheduler_key_policy` | No | `QUEUE` (default), `REPLACE`, or `SKIP` | `QUEUE` |
+| `scheduler_retry_count` | No | Max retries (overrides global default) | `3` |
+| `scheduler_advisory_headers` | No | Regex for headers to include in advisory events | `^(requestId\|txnId)$` |
 
-*`SCHEDULER_AT`, `SCHEDULER_WAIT`, and `SCHEDULER_CRON` are mutually exclusive. If none specified, fires immediately.
+*`scheduler_at`, `scheduler_wait`, and `scheduler_cron` are mutually exclusive. If none specified, fires immediately.
 
 ## Key Modes
 
@@ -106,7 +106,7 @@ Published to `scheduler.advisory`, keyed by job key for partition affinity:
 | `JOB_FAILED` | Failed after retries |
 | `JOB_CASCADE_FAILED` | Failed due to predecessor failure |
 
-Advisory events contain metadata only (no original payload). The `SCHEDULER_ADVISORY_HEADERS` regex controls which non-scheduler headers from the original message are included.
+Advisory events contain metadata only (no original payload). The `scheduler_advisory_headers` regex controls which non-scheduler headers from the original message are included.
 
 ### Event State Machine
 
@@ -193,7 +193,7 @@ scheduler.consumer-group=scheduler-group
 
 ### Ingest
 1. Consume from `scheduler.in`
-2. Parse `SCHEDULER_*` headers
+2. Parse `scheduler_*` headers
 3. Apply key mode logic (QUEUE/REPLACE/SKIP)
 4. Persist to database
 5. If PENDING: add to DelayQueue
@@ -202,7 +202,7 @@ scheduler.consumer-group=scheduler-group
 ### Fire
 1. `DelayQueue.take()` returns due job
 2. Acquire job (optimistic lock in DB)
-3. Publish to destination topic (without `SCHEDULER_*` headers)
+3. Publish to destination topic (without `scheduler_*` headers)
 4. Mark complete
 5. Promote waiting successors (QUEUE mode)
 6. Publish advisory event

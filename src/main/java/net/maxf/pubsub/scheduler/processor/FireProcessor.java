@@ -44,10 +44,10 @@ public class FireProcessor implements Processor {
             exchange.getIn().setHeader("kafka.KEY", job.getMessageKey());
         }
 
-        // Forward only non-SCHEDULER_ headers
+        // Forward only non-scheduler_ headers (case-insensitive)
         if (job.getHeaders() != null) {
             for (Map.Entry<String, String> entry : job.getHeaders().entrySet()) {
-                if (!entry.getKey().startsWith("SCHEDULER_")) {
+                if (!entry.getKey().toLowerCase().startsWith("scheduler_")) {
                     exchange.getIn().setHeader(entry.getKey(), entry.getValue());
                 }
             }

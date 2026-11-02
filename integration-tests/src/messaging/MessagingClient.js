@@ -27,20 +27,20 @@ export class MessagingClient {
    */
   async sendScheduledMessage(jobKey, options = {}) {
     const headers = {
-      SCHEDULER_DESTINATION: options.destination || this.config.outputTopic,
-      SCHEDULER_KEY: jobKey,
+      scheduler_destination: options.destination || this.config.outputTopic,
+      scheduler_key: jobKey,
     };
 
-    if (options.runAt) headers.SCHEDULER_AT = options.runAt.toISOString();
-    if (options.wait) headers.SCHEDULER_WAIT = options.wait;
-    if (options.waitStart) headers.SCHEDULER_WAIT_START = options.waitStart;
-    if (options.waitRepeat) headers.SCHEDULER_WAIT_REPEAT = String(options.waitRepeat);
-    if (options.keyPolicy) headers.SCHEDULER_KEY_POLICY = options.keyPolicy;
-    if (options.retryCount !== undefined) headers.SCHEDULER_RETRY_COUNT = String(options.retryCount);
-    if (options.cron) headers.SCHEDULER_CRON = options.cron;
-    if (options.cronRepeat) headers.SCHEDULER_CRON_REPEAT = String(options.cronRepeat);
-    if (options.cronUntil) headers.SCHEDULER_CRON_UNTIL = options.cronUntil.toISOString();
-    if (options.advisoryHeaders) headers.SCHEDULER_ADVISORY_HEADERS = options.advisoryHeaders;
+    if (options.runAt) headers.scheduler_at = options.runAt.toISOString();
+    if (options.wait) headers.scheduler_wait = options.wait;
+    if (options.waitStart) headers.scheduler_wait_start = options.waitStart;
+    if (options.waitRepeat) headers.scheduler_wait_repeat = String(options.waitRepeat);
+    if (options.keyPolicy) headers.scheduler_key_policy = options.keyPolicy;
+    if (options.retryCount !== undefined) headers.scheduler_retry_count = String(options.retryCount);
+    if (options.cron) headers.scheduler_cron = options.cron;
+    if (options.cronRepeat) headers.scheduler_cron_repeat = String(options.cronRepeat);
+    if (options.cronUntil) headers.scheduler_cron_until = options.cronUntil.toISOString();
+    if (options.advisoryHeaders) headers.scheduler_advisory_headers = options.advisoryHeaders;
     if (options.customHeaders) Object.assign(headers, options.customHeaders);
 
     return this.sendMessage(this.getInDestination(), options.body || 'test', headers);

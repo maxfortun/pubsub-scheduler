@@ -59,7 +59,7 @@
       "y": 115,
       "width": 160,
       "height": 60,
-      "text": "Message arrives at\nscheduler.in topic\nwith SCHEDULER_*\nheaders",
+      "text": "Message arrives at\nscheduler.in topic\nwith scheduler_*\nheaders",
       "fontSize": 11,
       "fontFamily": 1
     },

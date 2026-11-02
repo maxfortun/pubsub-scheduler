@@ -22,11 +22,11 @@ So you build a custom solution. A polling loop. A cron job. A database with time
 
 ## The Solution
 
-PubSub Scheduler sits between your producers and your message broker. Send a message with `SCHEDULER_*` headers, and it delivers to any destination topic at the right time.
+PubSub Scheduler sits between your producers and your message broker. Send a message with `scheduler_*` headers, and it delivers to any destination topic at the right time.
 
 ```
-SCHEDULER_DESTINATION: orders.process
-SCHEDULER_WAIT: PT5M
+scheduler_destination: orders.process
+scheduler_wait: PT5M
 ```
 
 That's it. The message arrives at `orders.process` in 5 minutes.
@@ -39,9 +39,9 @@ That's it. The message arrives at `orders.process` in 5 minutes.
 
 | Method | Example | Use Case |
 |--------|---------|----------|
-| **Absolute** | `SCHEDULER_AT: 2026-09-20T15:00:00Z` | Scheduled reports, appointments |
-| **Relative** | `SCHEDULER_WAIT: PT5M` | Retries, cooldowns, debouncing |
-| **Recurring** | `SCHEDULER_CRON: 0 9 * * *` | Daily jobs, periodic sync |
+| **Absolute** | `scheduler_at: 2026-09-20T15:00:00Z` | Scheduled reports, appointments |
+| **Relative** | `scheduler_wait: PT5M` | Retries, cooldowns, debouncing |
+| **Recurring** | `scheduler_cron: 0 9 * * *` | Daily jobs, periodic sync |
 
 ### Job Ordering & Deduplication
 
@@ -89,7 +89,7 @@ echo '{"order": 123}' | kafka-console-producer \
   --bootstrap-server localhost:9092 \
   --topic scheduler.in \
   --property parse.headers=true \
-  --property 'headers=SCHEDULER_DESTINATION:orders.process,SCHEDULER_WAIT:PT5M'
+  --property 'headers=scheduler_destination:orders.process,scheduler_wait:PT5M'
 ```
 
 ---
@@ -99,9 +99,9 @@ echo '{"order": 123}' | kafka-console-producer \
 ### Payment Retries (Fintech)
 
 ```
-SCHEDULER_KEY: payment-456
-SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_WAIT: PT30S
+scheduler_key: payment-456
+scheduler_key_policy: REPLACE
+scheduler_wait: PT30S
 ```
 
 Retry failed payments with exponential backoff. REPLACE ensures only the latest retry is scheduled.
@@ -109,9 +109,9 @@ Retry failed payments with exponential backoff. REPLACE ensures only the latest 
 ### Abandoned Cart Reminders (E-commerce)
 
 ```
-SCHEDULER_KEY: cart-user-789
-SCHEDULER_KEY_POLICY: REPLACE
-SCHEDULER_WAIT: PT1H
+scheduler_key: cart-user-789
+scheduler_key_policy: REPLACE
+scheduler_wait: PT1H
 ```
 
 Send reminder 1 hour after last cart update. Each cart update resets the timer.
@@ -119,8 +119,8 @@ Send reminder 1 hour after last cart update. Each cart update resets the timer.
 ### Daily Reports (SaaS)
 
 ```
-SCHEDULER_CRON: 0 9 * * *
-SCHEDULER_CRON_CONCURRENT: false
+scheduler_cron: 0 9 * * *
+scheduler_cron_concurrent: false
 ```
 
 Run every day at 9am. Never overlap if yesterday's report is still running.
@@ -128,10 +128,10 @@ Run every day at 9am. Never overlap if yesterday's report is still running.
 ### Rate-Limited API Sync (Integration)
 
 ```
-SCHEDULER_KEY: api-sync
-SCHEDULER_KEY_POLICY: QUEUE
-SCHEDULER_WAIT: PT1M
-SCHEDULER_WAIT_START: PREV
+scheduler_key: api-sync
+scheduler_key_policy: QUEUE
+scheduler_wait: PT1M
+scheduler_wait_start: PREV
 ```
 
 Process API calls in order, with 1 minute between each. Perfect for rate-limited APIs.

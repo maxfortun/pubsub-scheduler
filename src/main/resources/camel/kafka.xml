@@ -11,7 +11,7 @@
             <doCatch>
                 <exception>java.lang.IllegalArgumentException</exception>
                 <log loggingLevel="WARN" message="Invalid schedule request: ${exception.message}"/>
-                <setHeader name="SCHEDULER_ERROR">
+                <setHeader name="scheduler_error">
                     <simple>${exception.message}</simple>
                 </setHeader>
                 <to uri="{{scheduler.dlq}}"/>
@@ -19,7 +19,7 @@
             <doCatch>
                 <exception>java.lang.Exception</exception>
                 <log loggingLevel="ERROR" message="Error processing schedule request: ${exception.message}"/>
-                <setHeader name="SCHEDULER_ERROR">
+                <setHeader name="scheduler_error">
                     <simple>${exception.message}</simple>
                 </setHeader>
                 <to uri="{{scheduler.dlq}}"/>
@@ -45,14 +45,14 @@
     <!-- Advisory route: publish scheduling events -->
     <route id="advisory-route">
         <from uri="direct:advisory"/>
-        <log loggingLevel="DEBUG" message="Publishing advisory: ${header.SCHEDULER_ADVISORY_EVENT}"/>
+        <log loggingLevel="DEBUG" message="Publishing advisory: ${header.scheduler_advisory_event}"/>
 
         <doTry>
             <to uri="{{scheduler.advisory}}"/>
             <doCatch>
                 <exception>java.lang.Exception</exception>
                 <log loggingLevel="WARN" message="Failed to publish advisory: ${exception.message}"/>
-                <setHeader name="SCHEDULER_ERROR">
+                <setHeader name="scheduler_error">
                     <simple>${exception.message}</simple>
                 </setHeader>
                 <to uri="{{scheduler.advisory.dlq}}"/>

@@ -39,7 +39,7 @@ export async function fetchStats(): Promise<JobStats> {
 export async function createJob(request: CreateJobRequest): Promise<ScheduledJob> {
   const response = await fetch(`${API_BASE}/jobs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(request),
   });
   if (!response.ok) {
@@ -52,7 +52,7 @@ export async function createJob(request: CreateJobRequest): Promise<ScheduledJob
 export async function updateJob(id: string, request: CreateJobRequest): Promise<ScheduledJob> {
   const response = await fetch(`${API_BASE}/jobs/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(request),
   });
   if (!response.ok) {

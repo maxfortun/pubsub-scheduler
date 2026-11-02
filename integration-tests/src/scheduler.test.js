@@ -64,12 +64,12 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
       const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
-      expect(dlqRecord.headers.SCHEDULER_ERROR).toContain('SCHEDULER_DESTINATION');
+      expect(dlqRecord.headers.scheduler_error).toContain('scheduler_destination');
     });
 
     test('blank destination sends to DLQ', async () => {
       const correlationId = `dlq-blank-dest-${uuid()}`;
-      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, { SCHEDULER_DESTINATION: '   ' });
+      await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, { scheduler_destination: '   ' });
       await sleep(2000);
 
       const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
@@ -89,7 +89,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
 
   // ========== Timing Header Tests ==========
   describe('Timing Headers', () => {
-    test('SCHEDULER_AT sets absolute fire time', async () => {
+    test('scheduler_at sets absolute fire time', async () => {
       const jobKey = `at-test-${uuid()}`;
       const runAt = futureTime();
       await messagingClient.sendScheduledMessage(jobKey, { runAt });
@@ -101,7 +101,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       expect(Math.abs(jobRunAt.getTime() - runAt.getTime())).toBeLessThan(5000);
     });
 
-    test('SCHEDULER_WAIT sets relative fire time', async () => {
+    test('scheduler_wait sets relative fire time', async () => {
       const jobKey = `wait-test-${uuid()}`;
       await messagingClient.sendScheduledMessage(jobKey, { wait: 'PT30M' });
       await sleep(3000);
@@ -123,18 +123,18 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('multiple timing headers sends to DLQ', async () => {
       const correlationId = `dlq-multi-timing-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_AT: futureTime().toISOString(),
-        SCHEDULER_WAIT: 'PT1H',
+        scheduler_destination: config.outputTopic,
+        scheduler_at: futureTime().toISOString(),
+        scheduler_wait: 'PT1H',
       });
       await sleep(2000);
 
       const dlqRecord = await messagingClient.pollDlqForMessage(correlationId);
       expect(dlqRecord).not.toBeNull();
-      expect(dlqRecord.headers.SCHEDULER_ERROR).toContain('mutually exclusive');
+      expect(dlqRecord.headers.scheduler_error).toContain('mutually exclusive');
     });
 
-    test('SCHEDULER_CRON creates cron job', async () => {
+    test('scheduler_cron creates cron job', async () => {
       const jobKey = `cron-test-${uuid()}`;
       await messagingClient.sendScheduledMessage(jobKey, { cron: '* * * * *' });
       await sleep(3000);
@@ -150,10 +150,10 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('CRON_UNTIL and CRON_REPEAT are mutually exclusive', async () => {
       const correlationId = `dlq-cron-exclusive-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_CRON: '0 0 * * *',
-        SCHEDULER_CRON_UNTIL: futureTime(24 * 30).toISOString(),
-        SCHEDULER_CRON_REPEAT: '5',
+        scheduler_destination: config.outputTopic,
+        scheduler_cron: '0 0 * * *',
+        scheduler_cron_until: futureTime(24 * 30).toISOString(),
+        scheduler_cron_repeat: '5',
       });
       await sleep(2000);
 
@@ -364,17 +364,17 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       await messagingClient.sendScheduledMessage(jobKey, {
         runAt: futureTime(),
         customHeaders: {
-          'X-Correlation-Id': 'corr-123',
-          'X-Request-Id': 'req-456',
+          'x-correlation-id': 'corr-123',
+          'x-request-id': 'req-456',
         },
       });
       await sleep(3000);
 
       const jobs = await getJobsByKey(jobKey);
       expect(jobs.length).toBeGreaterThan(0);
-      expect(jobs[0].headers['X-Correlation-Id']).toBe('corr-123');
-      expect(jobs[0].headers['X-Request-Id']).toBe('req-456');
-      expect(jobs[0].headers['SCHEDULER_DESTINATION']).toBeUndefined();
+      expect(jobs[0].headers['x-correlation-id']).toBe('corr-123');
+      expect(jobs[0].headers['x-request-id']).toBe('req-456');
+      expect(jobs[0].headers['scheduler_destination']).toBeUndefined();
     });
   });
 
@@ -383,8 +383,8 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('invalid AT format sends to DLQ', async () => {
       const correlationId = `dlq-invalid-at-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_AT: 'not-a-timestamp',
+        scheduler_destination: config.outputTopic,
+        scheduler_at: 'not-a-timestamp',
       });
       await sleep(2000);
 
@@ -395,8 +395,8 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('invalid WAIT format sends to DLQ', async () => {
       const correlationId = `dlq-invalid-wait-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_WAIT: 'not-a-duration',
+        scheduler_destination: config.outputTopic,
+        scheduler_wait: 'not-a-duration',
       });
       await sleep(2000);
 
@@ -407,9 +407,9 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('invalid WAIT_START sends to DLQ', async () => {
       const correlationId = `dlq-invalid-waitstart-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_WAIT: 'PT1H',
-        SCHEDULER_WAIT_START: 'INVALID',
+        scheduler_destination: config.outputTopic,
+        scheduler_wait: 'PT1H',
+        scheduler_wait_start: 'INVALID',
       });
       await sleep(2000);
 
@@ -420,8 +420,8 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
     test('invalid KEY_POLICY sends to DLQ', async () => {
       const correlationId = `dlq-invalid-policy-${uuid()}`;
       await messagingClient.sendMessage(messagingClient.getInDestination(), correlationId, {
-        SCHEDULER_DESTINATION: config.outputTopic,
-        SCHEDULER_KEY_POLICY: 'INVALID',
+        scheduler_destination: config.outputTopic,
+        scheduler_key_policy: 'INVALID',
       });
       await sleep(2000);
 
@@ -557,7 +557,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
         retryCount: 5,
         advisoryHeaders: 'X-.*',
         body,
-        customHeaders: { 'X-Correlation-Id': 'corr-999' },
+        customHeaders: { 'x-correlation-id': 'corr-999' },
       });
       await sleep(3000);
 
@@ -570,7 +570,7 @@ describe(`${config.name} Scheduler Integration Tests`, () => {
       expect(job.keyPolicy).toBe('REPLACE');
       expect(job.maxRetries).toBe(5);
       expect(job.advisoryHeadersPattern).toBe('X-.*');
-      expect(job.headers['X-Correlation-Id']).toBe('corr-999');
+      expect(job.headers['x-correlation-id']).toBe('corr-999');
     });
 
     test('wait job with all options', async () => {

@@ -23,7 +23,7 @@
       "y": 80,
       "width": 300,
       "height": 25,
-      "text": "SCHEDULER_AT (Absolute Time)",
+      "text": "scheduler_at (Absolute Time)",
       "fontSize": 18,
       "fontFamily": 1,
       "strokeColor": "#1971c2"
@@ -113,7 +113,7 @@
       "y": 114,
       "width": 270,
       "height": 18,
-      "text": "SCHEDULER_AT: 2026-09-20T15:00:00Z",
+      "text": "scheduler_at: 2026-09-20T15:00:00Z",
       "fontSize": 11,
       "fontFamily": 3
     },
@@ -136,7 +136,7 @@
       "y": 250,
       "width": 300,
       "height": 25,
-      "text": "SCHEDULER_WAIT (Relative Delay)",
+      "text": "scheduler_wait (Relative Delay)",
       "fontSize": 18,
       "fontFamily": 1,
       "strokeColor": "#e67700"
@@ -237,7 +237,7 @@
       "y": 284,
       "width": 190,
       "height": 18,
-      "text": "SCHEDULER_WAIT: PT5M",
+      "text": "scheduler_wait: PT5M",
       "fontSize": 11,
       "fontFamily": 3
     },
@@ -272,7 +272,7 @@
       "y": 295,
       "width": 280,
       "height": 50,
-      "text": "SCHEDULER_WAIT: PT5M\nSCHEDULER_WAIT_REPEAT: 3\n→ Fires 3 times, 5 min apart",
+      "text": "scheduler_wait: PT5M\nscheduler_wait_repeat: 3\n→ Fires 3 times, 5 min apart",
       "fontSize": 11,
       "fontFamily": 3
     },
@@ -295,7 +295,7 @@
       "y": 420,
       "width": 300,
       "height": 25,
-      "text": "SCHEDULER_CRON (Recurring)",
+      "text": "scheduler_cron (Recurring)",
       "fontSize": 18,
       "fontFamily": 1,
       "strokeColor": "#862e9c"
@@ -443,7 +443,7 @@
       "y": 459,
       "width": 210,
       "height": 18,
-      "text": "SCHEDULER_CRON: 0 9 * * *",
+      "text": "scheduler_cron: 0 9 * * *",
       "fontSize": 11,
       "fontFamily": 3
     },

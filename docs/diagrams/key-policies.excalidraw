@@ -23,7 +23,7 @@
       "y": 60,
       "width": 700,
       "height": 20,
-      "text": "When multiple jobs share the same SCHEDULER_KEY, the KEY_POLICY determines behavior:",
+      "text": "When multiple jobs share the same scheduler_key, the KEY_POLICY determines behavior:",
       "fontSize": 14,
       "fontFamily": 1,
       "strokeColor": "#495057"

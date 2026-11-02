@@ -92,8 +92,8 @@ class JsonUtilTest {
     @Test
     void roundTrip_preservesData() {
         Map<String, String> original = new HashMap<>();
-        original.put("X-Correlation-Id", "corr-123");
-        original.put("X-Request-Id", "req-456");
+        original.put("x-correlation-id", "corr-123");
+        original.put("x-request-id", "req-456");
         original.put("Special", "value with \"quotes\" and \\backslash");
 
         String json = JsonUtil.toJson(original);
